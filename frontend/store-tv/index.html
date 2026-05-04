@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Store TV - จัดกลุ่มตามขนส่ง</title>
+  <link rel="stylesheet" href="/static/tv.css">
+  <style>
+    body { overflow: hidden; }
+
+    /* ── layout ── */
+    .transport-grid {
+      display: flex;
+      gap: 0.7rem;
+      height: 100%;
+      overflow-x: auto;
+      padding: 0.7rem 1rem;
+      align-items: flex-start;
+    }
+
+    /* ── transport column ── */
+    .t-col {
+      flex: 0 0 260px;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      max-height: 100%;
+      overflow: hidden;
+    }
+
+    .t-header {
+      padding: 0.5rem 0.8rem;
+      background: #1f6feb;
+      border-radius: 10px 10px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .t-header.no-transport { background: #444; }
+
+    .t-name  { font-weight: bold; font-size: 1.1rem; }
+    .t-count { font-size: 0.85rem; background: rgba(0,0,0,0.3);
+               padding: 0.1rem 0.5rem; border-radius: 10px; }
+
+    .t-body  { overflow-y: auto; flex: 1; padding: 0.4rem; display: flex;
+               flex-direction: column; gap: 0.4rem; }
+
+    /* ── SO card ── */
+    .so-card {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 7px;
+      padding: 0.45rem 0.6rem;
+    }
+    .so-top   { display: flex; justify-content: space-between; align-items: center; }
+    .so-name  { font-weight: bold; color: #58a6ff; font-size: 1rem; }
+    .so-count { font-size: 0.8rem; color: #8b949e; }
+    .so-cust  { font-size: 0.82rem; color: #adbac7; margin: 0.15rem 0; white-space: nowrap;
+                overflow: hidden; text-overflow: ellipsis; }
+
+    .badges   { display: flex; gap: 0.25rem; flex-wrap: wrap; margin-top: 0.3rem; }
+    .badge {
+      font-size: 0.72rem; padding: 0.15rem 0.4rem; border-radius: 4px;
+      border: 1px solid #444; display: flex; flex-direction: column; align-items: center;
+      min-width: 2.8rem;
+    }
+    .badge b { font-size: 0.7rem; }
+    .badge span { font-size: 0.65rem; margin-top: 1px; }
+
+    .badge.pick     { border-color: #388bfd; background: #0d2340; }
+    .badge.pack     { border-color: #d29922; background: #2a1f00; }
+    .badge.delivery { border-color: #238636; background: #0d2818; }
+    .badge.other    { border-color: #555;    background: #1c1c1c; }
+
+    .state-assigned  .badge span { color: #58a6ff; }
+    .state-confirmed .badge span { color: #d29922; }
+    .state-waiting   .badge span { color: #f85149; }
+    .state-draft     .badge span { color: #8b949e; }
+
+    main { flex: 1; overflow: hidden; padding: 0; }
+  </style>
+</head>
+<body class="store">
+  <header>
+    <h1>Pick / Pack / Delivery — จัดกลุ่มตามขนส่ง</h1>
+    <div id="summary" style="font-size:0.95rem;color:#8b949e;"></div>
+    <div id="clock"></div>
+    <div id="last-updated"></div>
+  </header>
+
+  <main>
+    <div class="transport-grid" id="grid">
+      <p style="color:#8b949e;padding:2rem;">กำลังโหลด...</p>
+    </div>
+  </main>
+
+  <script src="/static/tv.js"></script>
+  <script>
+    async function fetchData() {
+      const res  = await fetch("/api/store/pickings");
+      const json = await res.json();
+      const groups = json.data;
+
+      const totalSO  = groups.reduce((s, g) => s + g.so_count, 0);
+      const realGroups = groups.filter(g => g.transport !== "ยังไม่ระบุขนส่ง");
+      document.getElementById("summary").textContent =
+        `${realGroups.length} ขนส่ง | ${totalSO} SO`;
+
+      const grid = document.getElementById("grid");
+      grid.innerHTML = groups.map(g => `
+        <div class="t-col">
+          <div class="t-header ${g.transport === 'ยังไม่ระบุขนส่ง' ? 'no-transport' : ''}">
+            <span class="t-name">${g.transport}</span>
+            <span class="t-count">${g.so_count} SO</span>
+          </div>
+          <div class="t-body">
+            ${g.sos.map(s => `
+              <div class="so-card">
+                <div class="so-top">
+                  <span class="so-name">${s.so}</span>
+                  <span class="so-count">${s.count} ใบ</span>
+                </div>
+                <div class="so-cust">${s.customer}</div>
+                <div class="badges">
+                  ${s.pickings.map(p => `
+                    <div class="badge ${p.type} state-${p.state}" title="${p.name}">
+                      <b>${p.type_label}</b>
+                      <span>${p.state_label}</span>
+                    </div>`).join("")}
+                </div>
+              </div>`).join("")}
+          </div>
+        </div>`).join("");
+
+      document.getElementById("last-updated").textContent =
+        "อัปเดต: " + new Date().toLocaleTimeString("th-TH");
+    }
+
+    startClock();
+    fetchData();
+    setInterval(fetchData, 10000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sales TV - รอออกบิล</title>
+  <link rel="stylesheet" href="/static/tv.css">
+  <style>
+    body { overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
+
+    header { border-bottom-color: #1f6feb; background: #0d1117; padding: 0.55rem 1.2rem; }
+    header h1 { font-size: 1.4rem; }
+    .header-right { display: flex; align-items: center; gap: 0.8rem; margin-left: auto; }
+    #summary { font-size: 0.9rem; color: #8b949e; }
+
+    /* ── column grid ── */
+    .route-grid {
+      display: flex;
+      gap: 0.6rem;
+      height: 100%;
+      overflow-x: auto;
+      padding: 0.6rem 0.8rem;
+      align-items: flex-start;
+    }
+
+    /* ── route column ── */
+    .r-col {
+      flex: 0 0 280px;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      max-height: 100%;
+      overflow: hidden;
+    }
+
+    .r-header {
+      padding: 0.45rem 0.8rem;
+      border-radius: 10px 10px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+      font-weight: bold;
+    }
+    .r-header.กรุงเทพ       { background: #1f6feb; }
+    .r-header.สายใน         { background: #238636; }
+    .r-header.สายนอก        { background: #9e6a03; }
+    .r-header.รับหน้าบริษัท { background: #6e40c9; }
+    .r-header.เซลล์ส่งเอง   { background: #da3633; }
+    .r-header.no-route      { background: #444; }
+
+    .r-name  { font-size: 1rem; }
+    .r-count { font-size: 0.8rem; background: rgba(0,0,0,0.3);
+               padding: 0.1rem 0.5rem; border-radius: 10px; }
+
+    .r-body { overflow-y: auto; flex: 1; padding: 0.35rem;
+              display: flex; flex-direction: column; gap: 0.35rem; }
+
+    /* ── picking card ── */
+    .p-card {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 7px;
+      padding: 0.4rem 0.6rem;
+      border-left: 3px solid #30363d;
+      transition: border-color 0.3s;
+    }
+    .p-card.billed      { border-left-color: #238636; opacity: 0.6; }
+    .p-card.not-billed  { border-left-color: #f0883e; }
+
+    .p-top { display: flex; justify-content: space-between; align-items: center; gap: 0.3rem; }
+    .p-doc { font-family: monospace; font-weight: bold; font-size: 0.95rem; color: #58a6ff; }
+    .p-so  { font-size: 0.82rem; color: #8b949e; }
+
+    .p-customer { font-size: 0.9rem; color: #e6edf3; margin: 0.1rem 0;
+                  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .p-bottom { display: flex; justify-content: space-between; align-items: center;
+                margin-top: 0.25rem; font-size: 0.78rem; flex-wrap: wrap; gap: 0.2rem; }
+
+    .p-transport { color: #d29922; font-weight: 600; }
+    .p-time { color: #8b949e; font-variant-numeric: tabular-nums; }
+    .p-time.today { color: #3fb950; }
+
+    .bill-tag {
+      font-size: 0.72rem; font-weight: bold;
+      padding: 0.1rem 0.45rem; border-radius: 4px;
+      white-space: nowrap;
+    }
+    .bill-tag.done    { background: #1a4020; color: #3fb950; border: 1px solid #238636; }
+    .bill-tag.pending { background: #3d1f00; color: #f0883e; border: 1px solid #f0883e; }
+
+    .easy-no {
+      font-size: 0.75rem; color: #cae8ff; font-family: monospace;
+      background: #1c2d41; border-radius: 3px; padding: 0.05rem 0.3rem;
+    }
+
+    /* flash new */
+    @keyframes flash { 0%{background:#1a3a5c;} 100%{background:#0d1117;} }
+    .card-new { animation: flash 2s ease-out; }
+
+    main { flex: 1; overflow: hidden; padding: 0; }
+  </style>
+</head>
+<body class="sales">
+  <header>
+    <h1>รายการรอออกบิล — จัดกลุ่มตามเส้นทาง</h1>
+    <div class="header-right">
+      <span id="summary"></span>
+      <div id="clock"></div>
+      <div id="last-updated" style="font-size:0.78rem;color:#8b949e;"></div>
+    </div>
+  </header>
+
+  <main>
+    <div class="route-grid" id="grid">
+      <p style="color:#8b949e;padding:2rem;">กำลังโหลด...</p>
+    </div>
+  </main>
+
+  <script src="/static/tv.js"></script>
+  <script>
+    let prevIds = new Set();
+
+    function isToday(iso) {
+      if (!iso) return false;
+      const d = new Date(iso), n = new Date();
+      return d.getFullYear()===n.getFullYear() && d.getMonth()===n.getMonth() && d.getDate()===n.getDate();
+    }
+
+    function fmtTime(iso) {
+      if (!iso) return "-";
+      const d = new Date(iso);
+      if (isToday(iso))
+        return d.toLocaleTimeString("th-TH", {hour:"2-digit",minute:"2-digit"});
+      return d.toLocaleString("th-TH", {day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+    }
+
+    function renderCard(p) {
+      const isNew   = !prevIds.has(p.id) && prevIds.size > 0;
+      const billed  = p.billed;
+      const today   = isToday(p.date);
+      const billTag = billed
+        ? `<span class="bill-tag done">✓ ทำบิลแล้ว</span>`
+        : `<span class="bill-tag pending">รอออกบิล</span>`;
+      const easyNo  = p.easy_acc_no
+        ? `<span class="easy-no">${p.easy_acc_no}</span>` : "";
+
+      return `<div class="p-card ${billed ? "billed" : "not-billed"} ${isNew ? "card-new" : ""}">
+        <div class="p-top">
+          <span class="p-doc">${p.name}</span>
+          <span class="p-time ${today ? "today" : ""}">${fmtTime(p.date)}</span>
+        </div>
+        <div class="p-customer">${p.customer}</div>
+        <div class="p-bottom">
+          ${easyNo}
+          ${billTag}
+        </div>
+      </div>`;
+    }
+
+    async function fetchData() {
+      try {
+        const res  = await fetch("/api/sales/ready-to-invoice");
+        const json = await res.json();
+        const groups = json.data || [];
+
+        const total   = groups.reduce((s,g) => s + g.count, 0);
+        const pending = groups.reduce((s,g) => s + g.pickings.filter(p=>!p.billed).length, 0);
+        document.getElementById("summary").textContent =
+          `รอออกบิล ${pending} / ${total} รายการ`;
+
+        const allIds = new Set(groups.flatMap(g => g.pickings.map(p => p.id)));
+
+        document.getElementById("grid").innerHTML = groups.map(g => `
+          <div class="r-col">
+            <div class="r-header ${g.route === "ยังไม่ระบุเส้นทาง" ? "no-route" : g.route}">
+              <span class="r-name">${g.route}</span>
+              <span class="r-count">${g.count} ใบ</span>
+            </div>
+            <div class="r-body">
+              ${g.pickings.map(p => renderCard(p)).join("")}
+            </div>
+          </div>`).join("");
+
+        prevIds = allIds;
+        document.getElementById("last-updated").textContent =
+          "อัปเดต " + new Date().toLocaleTimeString("th-TH");
+      } catch(e) { console.error(e); }
+    }
+
+    startClock();
+    fetchData();
+    setInterval(fetchData, 10000);
+  </script>
+</body>
+</html>

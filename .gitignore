@@ -1,0 +1,4 @@
+backend/config/.env
+__pycache__/
+*.py[cod]
+.env
