@@ -29,22 +29,27 @@ def _get_problem_so_ids(order_ids: list[int]) -> dict[int, dict]:
     if not order_ids:
         return {}
 
-    # is_return_picking ใน Odoo 18 ไม่น่าเชื่อถือ — ใช้ origin แทน
-    # return pick จะมี origin ขึ้นต้นด้วย "การส่งคืนของ"
+    # ดึง PICK ทั้งหมด (รวม return) เพื่อหักยอด return ออกจาก forward
+    # is_return_picking ใน Odoo 18 ไม่น่าเชื่อถือ — ตรวจจาก origin แทน
     # สอง query นี้ independent — ทำงานพร้อมกัน
+    _RETURN_MARKERS = ("การส่งคืนของ", "Return of")
+
+    def _is_return(picking: dict) -> bool:
+        origin = picking.get("origin") or ""
+        return any(m in origin for m in _RETURN_MARKERS)
+
     with ThreadPoolExecutor(max_workers=2) as ex:
         f_pick = ex.submit(
             odoo.search_read, "stock.picking",
             [("sale_id", "in", order_ids), ("picking_type_id", "=", PICK_TYPE_ID),
-             ("state", "=", "done"),
-             ("origin", "not ilike", "การส่งคืนของ")],
-            ["id", "sale_id", "picking_type_id"], limit=2000,
+             ("state", "=", "done")],
+            ["id", "sale_id", "origin"], limit=2000,
         )
         f_pack = ex.submit(
             odoo.search_read, "stock.picking",
             [("sale_id", "in", order_ids), ("picking_type_id", "=", PACK_TYPE_ID),
              ("state", "=", "done")],
-            ["id", "sale_id", "picking_type_id"], limit=2000,
+            ["id", "sale_id"], limit=2000,
         )
         pick_pickings = f_pick.result()
         pack_pickings = f_pack.result()
@@ -53,7 +58,8 @@ def _get_problem_so_ids(order_ids: list[int]) -> dict[int, dict]:
         return {}
 
     picking_ids   = [p["id"] for p in pickings]
-    pick_pick_ids = {p["id"] for p in pick_pickings}
+    # +1 = forward pick, -1 = return pick (ยอดหักคืน)
+    pick_sign     = {p["id"]: -1 if _is_return(p) else 1 for p in pick_pickings}
     pack_pick_ids = {p["id"] for p in pack_pickings}
     picking_so    = {p["id"]: p["sale_id"][0] for p in pickings if p.get("sale_id")}
 
@@ -73,8 +79,9 @@ def _get_problem_so_ids(order_ids: list[int]) -> dict[int, dict]:
         if not so_id:
             continue
         qty = m["quantity"]
-        if pid in pick_pick_ids:
-            pick_qty[so_id] = pick_qty.get(so_id, 0.0) + qty
+        if pid in pick_sign:
+            # forward pick: บวก, return pick: ลบ
+            pick_qty[so_id] = pick_qty.get(so_id, 0.0) + pick_sign[pid] * qty
         elif pid in pack_pick_ids:
             pack_qty[so_id] = pack_qty.get(so_id, 0.0) + qty
 
