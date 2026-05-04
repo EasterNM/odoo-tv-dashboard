@@ -1,5 +1,6 @@
 import xmlrpc.client
 import os
+import threading
 from functools import cached_property
 from urllib.parse import urlparse
 
@@ -14,14 +15,18 @@ class OdooClient:
         self.username = os.getenv("ODOO_USERNAME")
         self.password = os.getenv("ODOO_PASSWORD")
         self._uid = None
+        self._local = threading.local()
 
     @cached_property
     def common(self):
         return xmlrpc.client.ServerProxy(f"{self.url}/xmlrpc/2/common")
 
-    @cached_property
+    @property
     def models(self):
-        return xmlrpc.client.ServerProxy(f"{self.url}/xmlrpc/2/object")
+        # ServerProxy ไม่ thread-safe — แต่ละเธรดต้องมี instance ของตัวเอง
+        if not hasattr(self._local, "proxy"):
+            self._local.proxy = xmlrpc.client.ServerProxy(f"{self.url}/xmlrpc/2/object")
+        return self._local.proxy
 
     def authenticate(self) -> int:
         if not self._uid:
