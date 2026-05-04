@@ -49,7 +49,7 @@ def _get_problem_so_ids(order_ids: list[int]) -> dict[int, dict]:
             odoo.search_read, "stock.picking",
             [("sale_id", "in", order_ids), ("picking_type_id", "=", PACK_TYPE_ID),
              ("state", "=", "done")],
-            ["id", "sale_id"], limit=2000,
+            ["id", "sale_id", "origin"], limit=2000,
         )
         pick_pickings = f_pick.result()
         pack_pickings = f_pack.result()
@@ -60,7 +60,8 @@ def _get_problem_so_ids(order_ids: list[int]) -> dict[int, dict]:
     picking_ids   = [p["id"] for p in pickings]
     # +1 = forward pick, -1 = return pick (ยอดหักคืน)
     pick_sign     = {p["id"]: -1 if _is_return(p) else 1 for p in pick_pickings}
-    pack_pick_ids = {p["id"] for p in pack_pickings}
+    # return PACK = ของกลับจาก delivery ไม่ใช่ packing error → ตัดออกทั้งก้อน
+    pack_pick_ids = {p["id"] for p in pack_pickings if not _is_return(p)}
     picking_so    = {p["id"]: p["sale_id"][0] for p in pickings if p.get("sale_id")}
 
     moves = odoo.search_read(
