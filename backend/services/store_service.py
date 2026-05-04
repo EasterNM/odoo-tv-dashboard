@@ -8,7 +8,7 @@ TRANSPORT_FIELD = "x_studio_x_cust_del_method"
 
 PICKING_FIELDS = [
     "name", "origin", "partner_id", "state",
-    "picking_type_id", "scheduled_date", TRANSPORT_FIELD,
+    "picking_type_id", TRANSPORT_FIELD,
 ]
 
 STATE_LABEL = {

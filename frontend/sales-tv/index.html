@@ -50,6 +50,18 @@
     .r-header.รับหน้าบริษัท { background: #6e40c9; }
     .r-header.เซลล์ส่งเอง   { background: #da3633; }
     .r-header.no-route      { background: #444; }
+    .r-header.problem-col   { background: #b91c1c; animation: pulse-red 2s infinite; }
+    @keyframes pulse-red { 0%,100%{background:#b91c1c;} 50%{background:#dc2626;} }
+
+    .r-col.problem-col { border-color: #b91c1c; }
+
+    .problem-tag {
+      font-size: 0.7rem; font-weight: bold;
+      padding: 0.1rem 0.4rem; border-radius: 4px;
+      background: #450a0a; color: #fca5a5;
+      border: 1px solid #b91c1c; white-space: nowrap;
+    }
+    .qty-diff { font-size: 0.7rem; color: #fca5a5; }
 
     .r-name  { font-size: 1rem; }
     .r-count { font-size: 0.8rem; background: rgba(0,0,0,0.3);
@@ -124,20 +136,6 @@
   <script>
     let prevIds = new Set();
 
-    function isToday(iso) {
-      if (!iso) return false;
-      const d = new Date(iso), n = new Date();
-      return d.getFullYear()===n.getFullYear() && d.getMonth()===n.getMonth() && d.getDate()===n.getDate();
-    }
-
-    function fmtTime(iso) {
-      if (!iso) return "-";
-      const d = new Date(iso);
-      if (isToday(iso))
-        return d.toLocaleTimeString("th-TH", {hour:"2-digit",minute:"2-digit"});
-      return d.toLocaleString("th-TH", {day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
-    }
-
     function renderCard(p) {
       const isNew   = !prevIds.has(p.id) && prevIds.size > 0;
       const billed  = p.billed;
@@ -147,8 +145,11 @@
         : `<span class="bill-tag pending">รอออกบิล</span>`;
       const easyNo  = p.easy_acc_no
         ? `<span class="easy-no">${p.easy_acc_no}</span>` : "";
+      const problemTag = p.has_problem
+        ? `<span class="problem-tag">⚠ บิลมีปัญหารบกวนตรวจสอบ</span>
+           <span class="qty-diff">PICK ${p.pick_qty} ≠ PACK ${p.pack_qty}</span>` : "";
 
-      return `<div class="p-card ${billed ? "billed" : "not-billed"} ${isNew ? "card-new" : ""}">
+      return `<div class="p-card ${billed ? "billed" : "not-billed"} ${isNew ? "card-new" : ""}" style="${p.has_problem ? 'border-left-color:#b91c1c;' : ''}">
         <div class="p-top">
           <span class="p-doc">${p.name}</span>
           <span class="p-time ${today ? "today" : ""}">${fmtTime(p.date)}</span>
@@ -157,6 +158,7 @@
         <div class="p-bottom">
           ${easyNo}
           ${billTag}
+          ${problemTag}
         </div>
       </div>`;
     }
@@ -174,16 +176,22 @@
 
         const allIds = new Set(groups.flatMap(g => g.pickings.map(p => p.id)));
 
-        document.getElementById("grid").innerHTML = groups.map(g => `
-          <div class="r-col">
-            <div class="r-header ${g.route === "ยังไม่ระบุเส้นทาง" ? "no-route" : g.route}">
+        document.getElementById("grid").innerHTML = groups.map(g => {
+          const isProblem = g.is_problem_col;
+          const headerCls = isProblem ? "problem-col"
+                          : g.route === "ยังไม่ระบุเส้นทาง" ? "no-route"
+                          : g.route;
+          return `
+          <div class="r-col ${isProblem ? "problem-col" : ""}">
+            <div class="r-header ${headerCls}">
               <span class="r-name">${g.route}</span>
-              <span class="r-count">${g.count} ใบ</span>
+              <span class="r-count">${g.count} รายการ</span>
             </div>
             <div class="r-body">
               ${g.pickings.map(p => renderCard(p)).join("")}
             </div>
-          </div>`).join("");
+          </div>`;
+        }).join("");
 
         prevIds = allIds;
         document.getElementById("last-updated").textContent =
