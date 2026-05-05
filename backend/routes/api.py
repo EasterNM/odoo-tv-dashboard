@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
 from pydantic import BaseModel
 from pathlib import Path
 from services.sales_service import get_ready_to_invoice
@@ -10,6 +10,12 @@ from services.dispatch_service import get_dispatch_routes, get_route_sos, confir
 
 router = APIRouter()
 FRONTEND_DIR = Path(__file__).parent.parent.parent / "frontend"
+SHARED_DIR   = FRONTEND_DIR / "shared"
+
+
+@router.get("/sw.js")
+def service_worker():
+    return FileResponse(SHARED_DIR / "sw.js", media_type="application/javascript")
 
 
 @router.get("/api/sales/ready-to-invoice")
