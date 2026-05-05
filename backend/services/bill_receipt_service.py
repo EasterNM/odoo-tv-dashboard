@@ -78,7 +78,7 @@ def confirm_receipt(so_ids: list, signature_b64: str, signer_name: str) -> dict:
                 f"รับพร้อมกัน: {so_names}"
             ),
             "message_type": "comment",
-            "attachment_ids": [(4, att_id)],
+            "attachment_ids": [att_id],
         })
 
     return {"ok": True, "confirmed": len(so_ids), "so_names": so_names}
