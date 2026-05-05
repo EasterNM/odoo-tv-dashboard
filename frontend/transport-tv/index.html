@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transport TV — เส้นทาง / วิธีส่ง</title>
+  <link rel="stylesheet" href="/static/tv.css">
+  <style>
+    body { overflow: hidden; }
+    main { padding: 0.6rem 0.8rem; overflow: hidden; }
+
+    /* ── route row grid ── */
+    .route-grid {
+      display: flex;
+      gap: 0.6rem;
+      height: 100%;
+      overflow-x: auto;
+      align-items: flex-start;
+    }
+
+    /* ── route column ── */
+    .route-col {
+      flex: 0 0 260px;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      max-height: 100%;
+      overflow: hidden;
+    }
+
+    .route-header {
+      padding: 0.5rem 0.8rem;
+      background: #1158a8;
+      border-radius: 10px 10px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .route-header.no-route { background: #444; }
+
+    .route-name  { font-weight: bold; font-size: 1.05rem; }
+    .route-count { font-size: 0.8rem; background: rgba(0,0,0,0.3);
+                   padding: 0.1rem 0.45rem; border-radius: 10px; }
+
+    .route-body { overflow-y: auto; flex: 1; padding: 0.4rem;
+                  display: flex; flex-direction: column; gap: 0.5rem; }
+
+    /* ── carrier group ── */
+    .carrier-group {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 7px;
+      overflow: hidden;
+    }
+
+    .carrier-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0.3rem 0.6rem;
+      background: #1a3a5c;
+      font-size: 0.82rem;
+    }
+    .carrier-header.no-carrier { background: #2a2a2a; }
+    .carrier-name  { font-weight: bold; color: #58a6ff; }
+    .carrier-count { font-size: 0.75rem; color: #8b949e; }
+
+    .carrier-body  { padding: 0.3rem; display: flex; flex-direction: column; gap: 0.25rem; }
+
+    /* ── SO card ── */
+    .so-card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 5px;
+      padding: 0.35rem 0.5rem;
+    }
+    .so-top  { display: flex; justify-content: space-between; align-items: center; }
+    .so-name { font-weight: bold; color: #79c0ff; font-size: 0.88rem; }
+    .so-cnt  { font-size: 0.72rem; color: #8b949e; }
+    .so-cust { font-size: 0.75rem; color: #adbac7;
+               white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0.1rem 0; }
+
+    .badges { display: flex; gap: 0.2rem; flex-wrap: wrap; margin-top: 0.2rem; }
+    .badge  {
+      font-size: 0.68rem; padding: 0.1rem 0.35rem; border-radius: 3px;
+      border: 1px solid #444; display: flex; flex-direction: column; align-items: center;
+    }
+    .badge b    { font-size: 0.65rem; }
+    .badge span { font-size: 0.6rem; }
+
+    .state-assigned  .badge span { color: #3fb950; }
+    .state-confirmed .badge span { color: #d29922; }
+    .state-waiting   .badge span { color: #f85149; }
+    .state-draft     .badge span { color: #8b949e; }
+
+    /* summary pills */
+    .pill { font-size: 0.82rem; padding: 0.15rem 0.6rem; border-radius: 10px;
+            background: #0d1117; border: 1px solid #30363d; }
+    .pill b { color: #e6edf3; }
+  </style>
+</head>
+<body class="store">
+  <header>
+    <h1>Transport — เส้นทาง / วิธีจัดส่ง</h1>
+    <div id="summary" style="display:flex;gap:0.4rem;align-items:center;"></div>
+    <div id="clock"></div>
+    <div id="last-updated"></div>
+  </header>
+
+  <main>
+    <div class="route-grid" id="grid">
+      <p style="color:#555;padding:2rem;">กำลังโหลด...</p>
+    </div>
+  </main>
+
+  <script src="/static/tv.js"></script>
+  <script>
+    function renderSoCard(s) {
+      const badges = s.pickings.map(p => `
+        <div class="badge state-${p.state}" title="${p.name}">
+          <b>${p.name}</b>
+          <span>${p.state_label}</span>
+        </div>`).join("");
+      return `
+        <div class="so-card">
+          <div class="so-top">
+            <span class="so-name">${s.so}</span>
+            <span class="so-cnt">${s.count} ใบ</span>
+          </div>
+          <div class="so-cust">${s.customer}</div>
+          <div class="badges">${badges}</div>
+        </div>`;
+    }
+
+    function renderCarrier(c) {
+      const noCarrier = c.carrier === "ยังไม่ระบุวิธีส่ง";
+      return `
+        <div class="carrier-group">
+          <div class="carrier-header ${noCarrier ? 'no-carrier' : ''}">
+            <span class="carrier-name">${c.carrier}</span>
+            <span class="carrier-count">${c.so_count} SO</span>
+          </div>
+          <div class="carrier-body">
+            ${c.sos.map(renderSoCard).join("")}
+          </div>
+        </div>`;
+    }
+
+    function renderRoute(r) {
+      const noRoute = r.route === "ยังไม่ระบุเส้นทาง";
+      return `
+        <div class="route-col">
+          <div class="route-header ${noRoute ? 'no-route' : ''}">
+            <span class="route-name">${r.route}</span>
+            <span class="route-count">${r.so_count} SO</span>
+          </div>
+          <div class="route-body">
+            ${r.carriers.map(renderCarrier).join("")}
+          </div>
+        </div>`;
+    }
+
+    async function fetchData() {
+      try {
+        const res   = await fetch("/api/transport/pickings");
+        const json  = await res.json();
+        const routes = json.data;
+
+        const totalSO = routes.reduce((s, r) => s + r.so_count, 0);
+        const named   = routes.filter(r => r.route !== "ยังไม่ระบุเส้นทาง");
+        document.getElementById("summary").innerHTML = `
+          <span class="pill">รวม <b>${totalSO}</b> SO</span>
+          <span class="pill"><b>${named.length}</b> เส้นทาง</span>`;
+
+        const grid = document.getElementById("grid");
+        if (!routes.length) {
+          grid.innerHTML = '<p style="color:#555;text-align:center;padding:2rem;">ไม่มีรายการ</p>';
+          return;
+        }
+        grid.innerHTML = routes.map(renderRoute).join("");
+
+        document.getElementById("last-updated").textContent =
+          "อัปเดต: " + new Date().toLocaleTimeString("th-TH");
+      } catch(e) { console.error(e); }
+    }
+
+    startClock();
+    fetchData();
+    setInterval(fetchData, 10000);
+  </script>
+</body>
+</html>
