@@ -8,13 +8,13 @@
   <style>
     body { overflow: hidden; }
 
-    /* ── 4-column layout ── */
+    /* ── 5-column layout ── */
     .four-col {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 0.7rem;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 0.6rem;
       height: 100%;
-      padding: 0.7rem 0.8rem;
+      padding: 0.6rem 0.8rem;
     }
 
     /* ── column ── */
@@ -39,6 +39,7 @@
     .col-header.pack     { background: #7d5a00; }
     .col-header.delivery { background: #1a5e2a; }
     .col-header.so-col   { background: #5a1e8c; }
+    .col-header.warn-col { background: #7d1a1a; }
 
     .col-title { font-weight: bold; font-size: 1.1rem; letter-spacing: 0.05em; }
     .col-count { font-size: 0.82rem; background: rgba(0,0,0,0.3);
@@ -125,6 +126,22 @@
     .state-waiting   .op-st { color: #f85149; }
     .state-draft     .op-st { color: #8b949e; }
 
+    /* ── warning card (column 5) ── */
+    .warn-card {
+      background: #1a0a0a;
+      border: 1px solid #7d1a1a;
+      border-left: 3px solid #f85149;
+      border-radius: 7px;
+      padding: 0.45rem 0.6rem;
+    }
+    .warn-so   { font-weight: bold; color: #f85149; font-size: 0.95rem; }
+    .warn-cust { font-size: 0.75rem; color: #adbac7;
+                 white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0.1rem 0; }
+    .warn-qty  { display: flex; gap: 0.4rem; font-size: 0.75rem; margin-top: 0.2rem; flex-wrap: wrap; }
+    .warn-pick { color: #388bfd; }
+    .warn-pack { color: #d29922; }
+    .warn-diff { color: #f85149; font-weight: bold; }
+
     main { flex: 1; overflow: hidden; padding: 0; }
   </style>
 </head>
@@ -172,6 +189,15 @@
           <span class="col-count" id="cnt-sos">0 SO</span>
         </div>
         <div class="col-body" id="body-sos"></div>
+      </div>
+
+      <!-- column 5: ยอดไม่ตรง -->
+      <div class="col warn-col">
+        <div class="col-header warn-col">
+          <span class="col-title">⚠ Pick ≠ Pack</span>
+          <span class="col-count" id="cnt-warn">0 SO</span>
+        </div>
+        <div class="col-body" id="body-warn"></div>
       </div>
     </div>
   </main>
@@ -240,6 +266,26 @@
       }).join("");
     }
 
+    function renderWarnCol(warnings) {
+      const body = document.getElementById("body-warn");
+      const cnt  = document.getElementById("cnt-warn");
+      cnt.textContent = warnings.length + " SO";
+      if (!warnings.length) {
+        body.innerHTML = '<p style="color:#555;text-align:center;padding:1rem;">ไม่มีรายการ</p>';
+        return;
+      }
+      body.innerHTML = warnings.map(w => `
+        <div class="warn-card">
+          <div class="warn-so">${w.so}</div>
+          <div class="warn-cust">${w.customer}</div>
+          <div class="warn-qty">
+            <span class="warn-pick">PICK: ${w.pick_qty}</span>
+            <span class="warn-pack">PACK: ${w.pack_qty}</span>
+            <span class="warn-diff">ต่าง: ${w.diff}</span>
+          </div>
+        </div>`).join("");
+    }
+
     async function fetchData() {
       try {
         const res  = await fetch("/api/store/pickings");
@@ -247,13 +293,15 @@
         const data = json.data;
 
         const total = (data.sos || []).length;
+        const warnCount = (data.warnings || []).length;
         document.getElementById("summary").textContent =
-          `${total} SO | PICK ${(data.pick||[]).length} | PACK ${(data.pack||[]).length} | DEL ${(data.delivery||[]).length}`;
+          `${total} SO | PICK ${(data.pick||[]).length} | PACK ${(data.pack||[]).length} | DEL ${(data.delivery||[]).length}${warnCount ? ` | ⚠ ${warnCount}` : ""}`;
 
         renderSimpleCol("pick",     data.pick     || []);
         renderSimpleCol("pack",     data.pack     || []);
         renderSimpleCol("delivery", data.delivery || []);
         renderSoCol(data.sos || []);
+        renderWarnCol(data.warnings || []);
 
         document.getElementById("last-updated").textContent =
           "อัปเดต: " + new Date().toLocaleTimeString("th-TH");
