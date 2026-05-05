@@ -3,7 +3,7 @@
   "short_name": "รับบิล",
   "start_url": "/mobile/receive-bill",
   "display": "standalone",
-  "orientation": "portrait",
+  "orientation": "any",
   "background_color": "#0d1117",
   "theme_color": "#238636",
   "icons": [
