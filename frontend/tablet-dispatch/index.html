@@ -458,12 +458,18 @@
 
         grid.innerHTML = routes.map(r => `
           <button class="route-btn" style="background:${r.color};"
-                  onclick="openRoute(${JSON.stringify(r.route)}, ${JSON.stringify(r.color)})">
+                  data-route="${r.route.replace(/"/g,'&quot;')}"
+                  data-color="${r.color}">
             <span class="btn-icon">${r.icon}</span>
             <span class="btn-name">${r.route}</span>
             <span class="btn-count">${r.so_count} SO รอขึ้นรถ</span>
           </button>
         `).join("");
+
+        grid.querySelectorAll(".route-btn").forEach(btn => {
+          btn.addEventListener("click", () =>
+            openRoute(btn.dataset.route, btn.dataset.color));
+        });
       } catch(e) {
         document.getElementById("loading-routes").textContent = "โหลดข้อมูลไม่ได้ กรุณา Refresh";
         console.error(e);
