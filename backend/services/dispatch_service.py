@@ -134,7 +134,7 @@ def get_route_sos(route_name: str) -> dict:
         if so_id and so_id in so_map:
             so_map[so_id]["packages"] += len(p.get("package_level_ids") or [])
 
-    result = sorted(so_map.values(), key=lambda x: x["so"], reverse=True)
+    result = sorted(so_map.values(), key=lambda x: (x["carrier"], x["so"]))
     return {
         "route":    route_name,
         "color":    ROUTE_COLOR.get(route_name, "#555"),

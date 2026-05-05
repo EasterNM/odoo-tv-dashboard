@@ -197,6 +197,8 @@
     .td-prov { color: #8b949e; white-space: nowrap; }
     .td-car  { color: #d29922; white-space: nowrap; }
 
+    tr.carrier-group-start td { border-top: 2px solid #d29922 !important; }
+
     .bill-tick { color: #3fb950; font-size: 1.2rem; text-align: center; }
     .bill-none { color: #30363d; font-size: 1.1rem; text-align: center; }
 
@@ -520,12 +522,15 @@
       selectedIds = new Set(sos.map(s => s.so_id));
       noteMap = {};
 
+      let prevCarrier = null;
       tbody.innerHTML = sos.map(s => {
+        const isNewGroup = s.carrier !== prevCarrier;
+        prevCarrier = s.carrier;
         const billMark = s.received
           ? `<span class="bill-tick">✔</span>`
           : `<span class="bill-none">—</span>`;
         return `
-          <tr id="row-${s.so_id}" class="row-selected" onclick="toggleRow(${s.so_id}, event)">
+          <tr id="row-${s.so_id}" class="row-selected${isNewGroup ? ' carrier-group-start' : ''}" onclick="toggleRow(${s.so_id}, event)">
             <td><input type="checkbox" class="cb-row" id="cb-${s.so_id}" checked
                        onclick="event.stopPropagation(); toggleRow(${s.so_id})"></td>
             <td class="td-so">${s.so}</td>
