@@ -5,8 +5,9 @@ Dispatch Service — Tablet Loading Page
 from datetime import datetime, timezone, timedelta
 from services.odoo_client import odoo
 
-FIELD_ROUTE    = "x_studio_selection_field_92b_1jnor75f1"
-FIELD_RECEIVED = "x_studio_boolean_field_5bd_1jnp0r53i"
+FIELD_ROUTE      = "x_studio_selection_field_92b_1jnor75f1"
+FIELD_RECEIVED   = "x_studio_boolean_field_5bd_1jnp0r53i"
+FIELD_DISPATCHED = "x_studio_boolean_field_2dc_1jnrn22ck"   # ขึ้นรถจัดส่งแล้ว
 DATE_FROM      = "2026-05-01 00:00:00"
 THAI_TZ        = timezone(timedelta(hours=7))
 
@@ -43,7 +44,8 @@ def get_dispatch_routes() -> list:
         return []
 
     sale_ids = list({p["sale_id"][0] for p in pickings if p.get("sale_id")})
-    orders = odoo.search_read("sale.order", [("id", "in", sale_ids)],
+    orders = odoo.search_read("sale.order",
+        [("id", "in", sale_ids), (FIELD_DISPATCHED, "=", False)],
         ["id", FIELD_ROUTE], limit=len(sale_ids) + 10)
 
     route_sos: dict[str, set] = {}
@@ -80,7 +82,8 @@ def get_route_sos(route_name: str) -> dict:
 
     sale_ids = list({p["sale_id"][0] for p in pickings if p.get("sale_id")})
 
-    orders = odoo.search_read("sale.order", [("id", "in", sale_ids)], [
+    orders = odoo.search_read("sale.order",
+        [("id", "in", sale_ids), (FIELD_DISPATCHED, "=", False)], [
         "id", "name", FIELD_ROUTE, "delivery_method", FIELD_RECEIVED, "partner_id",
     ], limit=len(sale_ids) + 10)
 
@@ -155,6 +158,8 @@ def confirm_dispatch(route: str, so_ids: list, plate: str, driver: str,
         ["id", "name"], limit=len(so_ids) + 5)
     order_map = {o["id"]: o["name"] for o in orders}
     so_names = ", ".join(order_map.get(i, f"ID:{i}") for i in so_ids)
+
+    odoo.write("sale.order", so_ids, {FIELD_DISPATCHED: True})
 
     for so_id in so_ids:
         note = (notes.get(str(so_id)) or "").strip()
