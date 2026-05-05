@@ -75,6 +75,20 @@
       font-size: 0.72rem; background: #dbeafe; color: #1d4ed8;
       border-radius: 4px; padding: 0.1rem 0.4rem; white-space: nowrap;
     }
+    .easy-row {
+      display: flex; align-items: center; gap: 0.35rem;
+      margin-top: 0.25rem;
+    }
+    .easy-label { font-size: 0.75rem; color: #94a3b8; }
+    .easy-no-val {
+      font-size: 0.88rem; font-weight: 700;
+      color: #1d4ed8; font-family: monospace;
+      background: #dbeafe; border-radius: 5px;
+      padding: 0.1rem 0.5rem;
+    }
+    .easy-none {
+      font-size: 0.75rem; color: #cbd5e1; font-style: italic;
+    }
 
     /* ── sticky bottom bar ── */
     .bottom-bar {
@@ -349,13 +363,19 @@
       const container = document.getElementById('so-list');
       container.innerHTML = allSOs.map(so => {
         const checked = checkedIds.has(so.id);
-        const easyTag = so.easy_no ? `<span class="easy-tag">บิล ${so.easy_no}</span>` : '';
+        const easyRow = so.easy_no
+          ? `<div class="easy-row">
+               <span class="easy-label">เลขบิล easy-acc:</span>
+               <span class="easy-no-val">${so.easy_no}</span>
+             </div>`
+          : `<div class="easy-row"><span class="easy-none">ยังไม่มีเลขบิล easy-acc</span></div>`;
         return `
           <div class="so-item ${checked ? 'checked' : ''}" onclick="toggleItem(${so.id})">
             <input type="checkbox" ${checked ? 'checked' : ''}
                    onclick="event.stopPropagation();toggleItem(${so.id})">
             <div class="so-info">
-              <div class="so-name">${so.so} ${easyTag}</div>
+              <div class="so-name">${so.so}</div>
+              ${easyRow}
               <div class="so-cust">${so.customer}</div>
               <div class="so-meta">${so.date}</div>
             </div>
@@ -394,10 +414,14 @@
       list.innerHTML = selected.map(so => `
         <div class="confirmed-item">
           <span class="check-icon">✓</span>
-          <div>
-            <b>${so.so}</b>
-            ${so.easy_no ? `<span style="font-size:0.75rem;color:#1d4ed8;margin-left:0.4rem;">บิล ${so.easy_no}</span>` : ''}
-            <div style="font-size:0.8rem;color:#666;">${so.customer}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap;">
+              <b>${so.so}</b>
+              ${so.easy_no
+                ? `<span style="font-size:0.8rem;font-weight:700;color:#1d4ed8;background:#dbeafe;border-radius:4px;padding:0.05rem 0.4rem;font-family:monospace;">${so.easy_no}</span>`
+                : `<span style="font-size:0.75rem;color:#94a3b8;">ไม่มีเลขบิล</span>`}
+            </div>
+            <div style="font-size:0.8rem;color:#666;margin-top:0.1rem;">${so.customer}</div>
           </div>
         </div>`).join('');
 
