@@ -8,13 +8,13 @@
   <style>
     body { overflow: hidden; }
 
-    /* ── 3-column layout ── */
-    .three-col {
+    /* ── 4-column layout ── */
+    .four-col {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 0.8rem;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.7rem;
       height: 100%;
-      padding: 0.7rem 1rem;
+      padding: 0.7rem 0.8rem;
     }
 
     /* ── column ── */
@@ -28,7 +28,7 @@
     }
 
     .col-header {
-      padding: 0.5rem 1rem;
+      padding: 0.5rem 0.8rem;
       border-radius: 10px 10px 0 0;
       display: flex;
       justify-content: space-between;
@@ -38,46 +38,92 @@
     .col-header.pick     { background: #1158a8; }
     .col-header.pack     { background: #7d5a00; }
     .col-header.delivery { background: #1a5e2a; }
+    .col-header.so-col   { background: #5a1e8c; }
 
-    .col-title { font-weight: bold; font-size: 1.2rem; letter-spacing: 0.05em; }
-    .col-count { font-size: 0.85rem; background: rgba(0,0,0,0.3);
-                 padding: 0.1rem 0.5rem; border-radius: 10px; }
+    .col-title { font-weight: bold; font-size: 1.1rem; letter-spacing: 0.05em; }
+    .col-count { font-size: 0.82rem; background: rgba(0,0,0,0.3);
+                 padding: 0.1rem 0.45rem; border-radius: 10px; }
 
-    .col-body { overflow-y: auto; flex: 1; padding: 0.5rem; display: flex;
-                flex-direction: column; gap: 0.4rem; }
+    .col-body  { overflow-y: auto; flex: 1; padding: 0.4rem;
+                 display: flex; flex-direction: column; gap: 0.35rem; }
 
-    /* ── SO card ── */
+    /* ── SO card (columns 1-3) ── */
     .so-card {
       background: #0d1117;
       border: 1px solid #30363d;
       border-radius: 7px;
-      padding: 0.5rem 0.7rem;
+      padding: 0.45rem 0.6rem;
     }
-
     .so-top  { display: flex; justify-content: space-between; align-items: center; }
-    .so-name { font-weight: bold; color: #58a6ff; font-size: 1rem; }
-    .so-cnt  { font-size: 0.8rem; color: #8b949e; }
-    .so-cust { font-size: 0.82rem; color: #adbac7; margin: 0.15rem 0;
+    .so-name { font-weight: bold; color: #58a6ff; font-size: 0.95rem; }
+    .so-cnt  { font-size: 0.78rem; color: #8b949e; }
+    .so-cust { font-size: 0.78rem; color: #adbac7; margin: 0.12rem 0;
                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-    /* ── picking badges ── */
-    .badges { display: flex; gap: 0.25rem; flex-wrap: wrap; margin-top: 0.35rem; }
-    .badge {
-      font-size: 0.75rem; padding: 0.15rem 0.5rem; border-radius: 4px;
+    .badges { display: flex; gap: 0.2rem; flex-wrap: wrap; margin-top: 0.25rem; }
+    .badge  {
+      font-size: 0.7rem; padding: 0.12rem 0.4rem; border-radius: 4px;
       border: 1px solid #444; display: flex; flex-direction: column;
-      align-items: center; min-width: 3.5rem;
+      align-items: center; min-width: 3rem;
     }
-    .badge b    { font-size: 0.72rem; }
-    .badge span { font-size: 0.65rem; margin-top: 1px; }
+    .badge b    { font-size: 0.68rem; }
+    .badge span { font-size: 0.63rem; margin-top: 1px; }
 
     .col.pick     .badge { border-color: #388bfd; background: #0d2340; }
     .col.pack     .badge { border-color: #d29922; background: #2a1f00; }
     .col.delivery .badge { border-color: #238636; background: #0d2818; }
 
-    .state-assigned  .badge span { color: #3fb950; }
-    .state-confirmed .badge span { color: #d29922; }
-    .state-waiting   .badge span { color: #f85149; }
-    .state-draft     .badge span { color: #8b949e; }
+    /* ── SO cross-column card (column 4) ── */
+    .so-cross {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 7px;
+      padding: 0.45rem 0.6rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+    .cross-top {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .cross-name  { font-weight: bold; color: #c084fc; font-size: 0.95rem; }
+    .cross-cust  { font-size: 0.75rem; color: #adbac7;
+                   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* elapsed */
+    .elapsed {
+      font-size: 0.72rem; font-weight: bold;
+      padding: 0.08rem 0.4rem; border-radius: 8px; white-space: nowrap;
+    }
+    .elapsed.ok   { background: #0d2818; color: #3fb950; border: 1px solid #238636; }
+    .elapsed.warn { background: #2a1f00; color: #d29922; border: 1px solid #d29922; }
+    .elapsed.late { background: #300;    color: #f85149; border: 1px solid #f85149; }
+
+    /* op badges ใน column 4 */
+    .op-badges { display: flex; gap: 0.2rem; flex-wrap: wrap; }
+    .op-badge  {
+      display: flex; align-items: center; gap: 0.25rem;
+      padding: 0.12rem 0.4rem; border-radius: 4px;
+      border: 1px solid #444; font-size: 0.7rem; flex: 1; min-width: 0;
+    }
+    .op-label { font-weight: bold; font-size: 0.65rem;
+                padding: 0.02rem 0.25rem; border-radius: 3px; flex-shrink: 0; }
+    .op-info  { overflow: hidden; }
+    .op-doc   { font-size: 0.65rem; color: #8b949e;
+                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .op-st    { font-size: 0.68rem; }
+
+    .op-badge.pick     { background: #0d2340; border-color: #388bfd; }
+    .op-badge.pick     .op-label { background: #1158a8; color: #fff; }
+    .op-badge.pack     { background: #2a1f00; border-color: #d29922; }
+    .op-badge.pack     .op-label { background: #7d5a00; color: #fff; }
+    .op-badge.delivery { background: #0d2818; border-color: #238636; }
+    .op-badge.delivery .op-label { background: #1a5e2a; color: #fff; }
+
+    .state-assigned  .op-st { color: #3fb950; }
+    .state-confirmed .op-st { color: #d29922; }
+    .state-waiting   .op-st { color: #f85149; }
+    .state-draft     .op-st { color: #8b949e; }
 
     main { flex: 1; overflow: hidden; padding: 0; }
   </style>
@@ -85,13 +131,14 @@
 <body class="store">
   <header>
     <h1>Pick / Pack / Delivery</h1>
-    <div id="summary" style="font-size:0.95rem;color:#8b949e;"></div>
+    <div id="summary" style="font-size:0.9rem;color:#8b949e;"></div>
     <div id="clock"></div>
     <div id="last-updated"></div>
   </header>
 
   <main>
-    <div class="three-col">
+    <div class="four-col">
+      <!-- column 1: PICK -->
       <div class="col pick">
         <div class="col-header pick">
           <span class="col-title">PICK</span>
@@ -99,6 +146,8 @@
         </div>
         <div class="col-body" id="body-pick"></div>
       </div>
+
+      <!-- column 2: PACK -->
       <div class="col pack">
         <div class="col-header pack">
           <span class="col-title">PACK</span>
@@ -106,6 +155,8 @@
         </div>
         <div class="col-body" id="body-pack"></div>
       </div>
+
+      <!-- column 3: DELIVERY -->
       <div class="col delivery">
         <div class="col-header delivery">
           <span class="col-title">DELIVERY</span>
@@ -113,21 +164,34 @@
         </div>
         <div class="col-body" id="body-delivery"></div>
       </div>
+
+      <!-- column 4: SO รวม -->
+      <div class="col so-col">
+        <div class="col-header so-col">
+          <span class="col-title">รวม SO</span>
+          <span class="col-count" id="cnt-sos">0 SO</span>
+        </div>
+        <div class="col-body" id="body-sos"></div>
+      </div>
     </div>
   </main>
 
   <script src="/static/tv.js"></script>
   <script>
-    function renderColumn(colKey, sos) {
+    const OP_LABEL = { pick: "PICK", pack: "PACK", delivery: "DEL" };
+
+    function elapsedClass(m) {
+      return m < 240 ? "ok" : m < 480 ? "warn" : "late";
+    }
+
+    function renderSimpleCol(colKey, sos) {
       const body = document.getElementById("body-" + colKey);
       const cnt  = document.getElementById("cnt-"  + colKey);
       cnt.textContent = sos.length + " SO";
-
-      if (sos.length === 0) {
-        body.innerHTML = '<p style="color:#555;padding:1rem;text-align:center;">ไม่มีรายการ</p>';
+      if (!sos.length) {
+        body.innerHTML = '<p style="color:#555;text-align:center;padding:1rem;">ไม่มีรายการ</p>';
         return;
       }
-
       body.innerHTML = sos.map(s => `
         <div class="so-card">
           <div class="so-top">
@@ -145,16 +209,51 @@
         </div>`).join("");
     }
 
+    function renderSoCol(sos) {
+      const body = document.getElementById("body-sos");
+      const cnt  = document.getElementById("cnt-sos");
+      cnt.textContent = sos.length + " SO";
+      if (!sos.length) {
+        body.innerHTML = '<p style="color:#555;text-align:center;padding:1rem;">ไม่มีรายการ</p>';
+        return;
+      }
+      body.innerHTML = sos.map(s => {
+        const opBadges = ["pick","pack","delivery"].flatMap(type =>
+          (s.ops[type] || []).map(p => `
+            <div class="op-badge ${type} state-${p.state}">
+              <span class="op-label">${OP_LABEL[type]}</span>
+              <div class="op-info">
+                <div class="op-doc">${p.name}</div>
+                <div class="op-st">${p.state_label}</div>
+              </div>
+            </div>`)
+        ).join("");
+        return `
+          <div class="so-cross">
+            <div class="cross-top">
+              <span class="cross-name">${s.so}</span>
+              <span class="elapsed ${elapsedClass(s.elapsed_minutes)}">${s.elapsed_label}</span>
+            </div>
+            <div class="cross-cust">${s.customer}</div>
+            <div class="op-badges">${opBadges}</div>
+          </div>`;
+      }).join("");
+    }
+
     async function fetchData() {
       try {
         const res  = await fetch("/api/store/pickings");
         const json = await res.json();
         const data = json.data;
 
-        const total = ["pick","pack","delivery"].reduce((s,k) => s + (data[k]?.length || 0), 0);
-        document.getElementById("summary").textContent = `รวม ${total} SO`;
+        const total = (data.sos || []).length;
+        document.getElementById("summary").textContent =
+          `${total} SO | PICK ${(data.pick||[]).length} | PACK ${(data.pack||[]).length} | DEL ${(data.delivery||[]).length}`;
 
-        ["pick", "pack", "delivery"].forEach(col => renderColumn(col, data[col] || []));
+        renderSimpleCol("pick",     data.pick     || []);
+        renderSimpleCol("pack",     data.pack     || []);
+        renderSimpleCol("delivery", data.delivery || []);
+        renderSoCol(data.sos || []);
 
         document.getElementById("last-updated").textContent =
           "อัปเดต: " + new Date().toLocaleTimeString("th-TH");
