@@ -81,7 +81,7 @@ def get_route_sos(route_name: str) -> dict:
     sale_ids = list({p["sale_id"][0] for p in pickings if p.get("sale_id")})
 
     orders = odoo.search_read("sale.order", [("id", "in", sale_ids)], [
-        "id", "name", FIELD_ROUTE, "carrier_id", FIELD_RECEIVED, "partner_id",
+        "id", "name", FIELD_ROUTE, "delivery_method", FIELD_RECEIVED, "partner_id",
     ], limit=len(sale_ids) + 10)
 
     route_order_ids = {
@@ -123,7 +123,7 @@ def get_route_sos(route_name: str) -> dict:
             "so":       o["name"],
             "customer": o["partner_id"][1] if o.get("partner_id") else "-",
             "province": partner_province.get(pid, "-"),
-            "carrier":  o["carrier_id"][1] if o.get("carrier_id") else "-",
+            "carrier":  o["delivery_method"][1] if o.get("delivery_method") else "-",
             "received": bool(o.get(FIELD_RECEIVED)),
             "qty":      int(qty_map.get(o["id"], 0)),
             "packages": 0,
