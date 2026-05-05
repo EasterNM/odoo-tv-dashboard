@@ -527,7 +527,7 @@
         return `
           <tr id="row-${s.so_id}" class="row-selected" onclick="toggleRow(${s.so_id}, event)">
             <td><input type="checkbox" class="cb-row" id="cb-${s.so_id}" checked
-                       onclick="toggleRow(${s.so_id}, event)"></td>
+                       onclick="event.stopPropagation(); toggleRow(${s.so_id})"></td>
             <td class="td-so">${s.so}</td>
             <td class="td-cust" title="${s.customer}">${s.customer}</td>
             <td class="td-prov">${s.province}</td>
