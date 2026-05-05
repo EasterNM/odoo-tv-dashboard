@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>รับบิล</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background: #f4f6f9;
+      color: #1a1a2e;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: #1158a8;
+      color: #fff;
+      padding: 1rem 1.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      flex-shrink: 0;
+    }
+    header h1 { font-size: 1.15rem; }
+    #badge-count {
+      background: #fff;
+      color: #1158a8;
+      font-size: 0.8rem;
+      font-weight: bold;
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+    }
+
+    main { flex: 1; overflow-y: auto; padding: 0.8rem; }
+
+    #loading { text-align: center; padding: 3rem; color: #888; }
+    #empty   { text-align: center; padding: 3rem; color: #3fb950; font-size: 1.1rem; }
+
+    /* ── SO list ── */
+    .so-item {
+      background: #fff;
+      border-radius: 10px;
+      margin-bottom: 0.6rem;
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      border-left: 4px solid #cbd5e1;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .so-item.checked {
+      border-left-color: #1158a8;
+      background: #eff6ff;
+    }
+
+    .so-item input[type=checkbox] {
+      width: 22px; height: 22px;
+      accent-color: #1158a8;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+
+    .so-info { flex: 1; min-width: 0; }
+    .so-name { font-weight: bold; font-size: 1rem; color: #1158a8; }
+    .so-cust { font-size: 0.85rem; color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .so-meta { font-size: 0.75rem; color: #888; margin-top: 0.1rem; }
+    .easy-tag {
+      font-size: 0.72rem; background: #dbeafe; color: #1d4ed8;
+      border-radius: 4px; padding: 0.1rem 0.4rem; white-space: nowrap;
+    }
+
+    /* ── sticky bottom bar ── */
+    .bottom-bar {
+      background: #fff;
+      border-top: 1px solid #e2e8f0;
+      padding: 0.8rem 1rem;
+      display: flex;
+      gap: 0.6rem;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .btn-select-all {
+      flex: 0 0 auto;
+      padding: 0.65rem 1rem;
+      border-radius: 8px;
+      border: 1px solid #1158a8;
+      background: #fff;
+      color: #1158a8;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-confirm {
+      flex: 1;
+      padding: 0.75rem;
+      border-radius: 8px;
+      border: none;
+      background: #1158a8;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-confirm:disabled { background: #94a3b8; cursor: not-allowed; }
+    .btn-confirm:not(:disabled):active { background: #0d3f7a; }
+
+    /* ── Modal overlay ── */
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 100;
+      overflow-y: auto;
+      padding: 1rem;
+      align-items: flex-start;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: #fff;
+      border-radius: 14px;
+      width: 100%;
+      max-width: 480px;
+      margin: auto;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+    }
+
+    .modal-header {
+      background: #1158a8;
+      color: #fff;
+      padding: 1rem 1.2rem;
+    }
+    .modal-header h2 { font-size: 1.05rem; }
+    .modal-header p  { font-size: 0.82rem; opacity: 0.85; margin-top: 0.2rem; }
+
+    .modal-body { padding: 1rem 1.2rem; }
+
+    /* confirmed SO list in modal */
+    .confirmed-list { margin-bottom: 1rem; }
+    .confirmed-item {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #f1f5f9;
+      font-size: 0.9rem;
+    }
+    .confirmed-item:last-child { border-bottom: none; }
+    .check-icon { color: #16a34a; font-size: 1.1rem; }
+
+    /* signature */
+    .sig-label {
+      font-size: 0.88rem; font-weight: 600; color: #374151;
+      margin-bottom: 0.4rem;
+    }
+    .sig-wrap {
+      border: 2px dashed #94a3b8;
+      border-radius: 10px;
+      overflow: hidden;
+      touch-action: none;
+      background: #f8fafc;
+    }
+    #sig-canvas {
+      width: 100%;
+      display: block;
+      cursor: crosshair;
+    }
+    .sig-actions {
+      display: flex; gap: 0.5rem; margin-top: 0.5rem;
+    }
+    .btn-clear {
+      flex: 0 0 auto;
+      padding: 0.55rem 1rem;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      background: #fff; color: #555;
+      font-size: 0.88rem;
+      cursor: pointer;
+    }
+
+    .signer-row {
+      margin-top: 0.8rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+    .signer-row label { font-size: 0.85rem; font-weight: 600; color: #374151; }
+    .signer-row input {
+      padding: 0.6rem 0.8rem;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      font-size: 0.95rem;
+      width: 100%;
+    }
+    .signer-row input:focus { outline: none; border-color: #1158a8; }
+
+    .modal-footer {
+      padding: 0.8rem 1.2rem 1.2rem;
+      display: flex; gap: 0.6rem;
+    }
+    .btn-cancel {
+      flex: 0 0 auto;
+      padding: 0.7rem 1.1rem;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      background: #fff; color: #555;
+      font-size: 0.95rem; cursor: pointer;
+    }
+    .btn-submit {
+      flex: 1;
+      padding: 0.75rem;
+      border-radius: 8px;
+      border: none;
+      background: #16a34a;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .btn-submit:disabled { background: #94a3b8; cursor: not-allowed; }
+
+    /* ── Success screen ── */
+    #success-screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      padding: 2rem;
+      text-align: center;
+    }
+    .success-icon { font-size: 4rem; margin-bottom: 0.8rem; }
+    .success-title { font-size: 1.4rem; font-weight: bold; color: #15803d; margin-bottom: 0.5rem; }
+    .success-sub   { font-size: 0.95rem; color: #555; line-height: 1.6; }
+    .success-list  { margin-top: 1rem; text-align: left; background: #f0fdf4;
+                     border-radius: 10px; padding: 0.8rem 1rem; width: 100%; }
+    .success-list li { font-size: 0.9rem; color: #166534; padding: 0.2rem 0; }
+
+    .spinner {
+      display: inline-block;
+      width: 18px; height: 18px;
+      border: 3px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📋 รับบิลจากแผนกเซลล์</h1>
+    <span id="badge-count">0 รายการ</span>
+  </header>
+
+  <main id="main-content">
+    <div id="loading">กำลังโหลด...</div>
+    <div id="empty" style="display:none">✅ ไม่มีบิลที่รอรับ</div>
+    <div id="so-list"></div>
+  </main>
+
+  <!-- Success screen (replaces main) -->
+  <div id="success-screen">
+    <div class="success-icon">✅</div>
+    <div class="success-title">บันทึกสำเร็จ!</div>
+    <div class="success-sub">รับบิลเรียบร้อยแล้ว</div>
+    <ul class="success-list" id="success-list"></ul>
+  </div>
+
+  <div class="bottom-bar" id="bottom-bar">
+    <button class="btn-select-all" id="btn-select-all" onclick="toggleSelectAll()">เลือกทั้งหมด</button>
+    <button class="btn-confirm" id="btn-confirm" disabled onclick="openModal()">
+      ยืนยันการรับบิล (<span id="selected-count">0</span>)
+    </button>
+  </div>
+
+  <!-- Confirm + Signature Modal -->
+  <div class="modal-overlay" id="modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>ยืนยันการรับบิล</h2>
+        <p>ตรวจสอบรายการด้านล่างแล้วเซ็นชื่อเพื่อยืนยัน</p>
+      </div>
+      <div class="modal-body">
+        <div class="confirmed-list" id="confirmed-list"></div>
+
+        <div class="signer-row">
+          <label>ชื่อผู้รับบิล</label>
+          <input type="text" id="signer-name" placeholder="กรอกชื่อ-นามสกุล" autocomplete="name">
+        </div>
+
+        <div style="margin-top:1rem;">
+          <div class="sig-label">ลายเซ็นผู้รับบิล</div>
+          <div class="sig-wrap">
+            <canvas id="sig-canvas" height="160"></canvas>
+          </div>
+          <div class="sig-actions">
+            <button class="btn-clear" onclick="clearSignature()">ล้างลายเซ็น</button>
+            <span id="sig-hint" style="font-size:0.78rem;color:#94a3b8;align-self:center;">← เซ็นชื่อในกรอบ</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeModal()">ยกเลิก</button>
+        <button class="btn-submit" id="btn-submit" onclick="submitReceipt()">
+          ยืนยันและบันทึก
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let allSOs = [];
+    let checkedIds = new Set();
+    let sigCanvas, sigCtx, drawing = false, hasSig = false;
+
+    // ── Load data ───────────────────────────────────────────────────────────
+    async function loadData() {
+      try {
+        const res  = await fetch('/api/mobile/pending-receipts');
+        const json = await res.json();
+        allSOs = json.data || [];
+
+        document.getElementById('loading').style.display = 'none';
+
+        if (!allSOs.length) {
+          document.getElementById('empty').style.display = 'block';
+          document.getElementById('bottom-bar').style.display = 'none';
+          return;
+        }
+
+        document.getElementById('badge-count').textContent = `${allSOs.length} รายการ`;
+        renderList();
+      } catch(e) {
+        document.getElementById('loading').textContent = 'โหลดข้อมูลไม่ได้ ลองใหม่อีกครั้ง';
+      }
+    }
+
+    function renderList() {
+      const container = document.getElementById('so-list');
+      container.innerHTML = allSOs.map(so => {
+        const checked = checkedIds.has(so.id);
+        const easyTag = so.easy_no ? `<span class="easy-tag">บิล ${so.easy_no}</span>` : '';
+        return `
+          <div class="so-item ${checked ? 'checked' : ''}" onclick="toggleItem(${so.id})">
+            <input type="checkbox" ${checked ? 'checked' : ''}
+                   onclick="event.stopPropagation();toggleItem(${so.id})">
+            <div class="so-info">
+              <div class="so-name">${so.so} ${easyTag}</div>
+              <div class="so-cust">${so.customer}</div>
+              <div class="so-meta">${so.date}</div>
+            </div>
+          </div>`;
+      }).join('');
+      updateConfirmBtn();
+    }
+
+    function toggleItem(id) {
+      if (checkedIds.has(id)) checkedIds.delete(id);
+      else checkedIds.add(id);
+      renderList();
+    }
+
+    function toggleSelectAll() {
+      if (checkedIds.size === allSOs.length) {
+        checkedIds.clear();
+      } else {
+        allSOs.forEach(so => checkedIds.add(so.id));
+      }
+      renderList();
+    }
+
+    function updateConfirmBtn() {
+      const n = checkedIds.size;
+      document.getElementById('selected-count').textContent = n;
+      document.getElementById('btn-confirm').disabled = n === 0;
+      document.getElementById('btn-select-all').textContent =
+        checkedIds.size === allSOs.length ? 'ยกเลิกทั้งหมด' : 'เลือกทั้งหมด';
+    }
+
+    // ── Modal ────────────────────────────────────────────────────────────────
+    function openModal() {
+      const selected = allSOs.filter(so => checkedIds.has(so.id));
+      const list = document.getElementById('confirmed-list');
+      list.innerHTML = selected.map(so => `
+        <div class="confirmed-item">
+          <span class="check-icon">✓</span>
+          <div>
+            <b>${so.so}</b>
+            ${so.easy_no ? `<span style="font-size:0.75rem;color:#1d4ed8;margin-left:0.4rem;">บิล ${so.easy_no}</span>` : ''}
+            <div style="font-size:0.8rem;color:#666;">${so.customer}</div>
+          </div>
+        </div>`).join('');
+
+      document.getElementById('modal').classList.add('open');
+      initSignature();
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.remove('open');
+    }
+
+    // ── Signature pad ────────────────────────────────────────────────────────
+    function initSignature() {
+      sigCanvas = document.getElementById('sig-canvas');
+      // ปรับขนาด canvas ให้ตรงกับ display size
+      sigCanvas.width  = sigCanvas.offsetWidth;
+      sigCtx   = sigCanvas.getContext('2d');
+      sigCtx.strokeStyle = '#1a1a2e';
+      sigCtx.lineWidth   = 2.5;
+      sigCtx.lineCap     = 'round';
+      sigCtx.lineJoin    = 'round';
+      hasSig   = false;
+
+      function getPos(e) {
+        const rect = sigCanvas.getBoundingClientRect();
+        const src  = e.touches ? e.touches[0] : e;
+        return {
+          x: (src.clientX - rect.left) * (sigCanvas.width / rect.width),
+          y: (src.clientY - rect.top)  * (sigCanvas.height / rect.height),
+        };
+      }
+
+      sigCanvas.onmousedown  = sigCanvas.ontouchstart = e => {
+        e.preventDefault(); drawing = true;
+        const p = getPos(e);
+        sigCtx.beginPath(); sigCtx.moveTo(p.x, p.y);
+      };
+      sigCanvas.onmousemove  = sigCanvas.ontouchmove  = e => {
+        if (!drawing) return;
+        e.preventDefault();
+        const p = getPos(e);
+        sigCtx.lineTo(p.x, p.y); sigCtx.stroke();
+        hasSig = true;
+        document.getElementById('sig-hint').style.display = 'none';
+      };
+      sigCanvas.onmouseup    = sigCanvas.ontouchend   = () => { drawing = false; };
+    }
+
+    function clearSignature() {
+      if (!sigCtx) return;
+      sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+      hasSig = false;
+      document.getElementById('sig-hint').style.display = '';
+    }
+
+    // ── Submit ───────────────────────────────────────────────────────────────
+    async function submitReceipt() {
+      const signerName = document.getElementById('signer-name').value.trim();
+      if (!signerName) {
+        alert('กรุณากรอกชื่อผู้รับบิล');
+        document.getElementById('signer-name').focus();
+        return;
+      }
+      if (!hasSig) {
+        alert('กรุณาเซ็นชื่อในกรอบลายเซ็น');
+        return;
+      }
+
+      const btn = document.getElementById('btn-submit');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> กำลังบันทึก...';
+
+      try {
+        const sigData = sigCanvas.toDataURL('image/png');
+        const res = await fetch('/api/mobile/confirm-receipt', {
+          method:  'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            so_ids:        [...checkedIds],
+            signature_b64: sigData,
+            signer_name:   signerName,
+          }),
+        });
+
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.detail || 'เกิดข้อผิดพลาด');
+
+        // แสดง success screen
+        closeModal();
+        document.getElementById('main-content').style.display = 'none';
+        document.getElementById('bottom-bar').style.display  = 'none';
+
+        const confirmed = allSOs.filter(so => checkedIds.has(so.id));
+        document.getElementById('success-list').innerHTML =
+          confirmed.map(so => `<li>✅ ${so.so} — ${so.customer}</li>`).join('');
+        document.getElementById('success-screen').style.display = 'flex';
+
+      } catch(e) {
+        alert('บันทึกไม่สำเร็จ: ' + e.message);
+        btn.disabled = false;
+        btn.textContent = 'ยืนยันและบันทึก';
+      }
+    }
+
+    loadData();
+  </script>
+</body>
+</html>

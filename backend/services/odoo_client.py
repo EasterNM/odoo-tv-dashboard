@@ -33,13 +33,38 @@ class OdooClient:
             self._uid = self.common.authenticate(self.db, self.username, self.password, {})
         return self._uid
 
-    def search_read(self, model: str, domain: list, fields: list, limit: int = 100) -> list:
+    def search_read(self, model: str, domain: list, fields: list, limit: int = 100, order: str = "write_date desc") -> list:
         uid = self.authenticate()
         return self.models.execute_kw(
             self.db, uid, self.password,
             model, "search_read",
             [domain],
-            {"fields": fields, "limit": limit, "order": "write_date desc"},
+            {"fields": fields, "limit": limit, "order": order},
+        )
+
+    def write(self, model: str, ids: list, vals: dict) -> bool:
+        uid = self.authenticate()
+        return self.models.execute_kw(
+            self.db, uid, self.password,
+            model, "write",
+            [ids, vals],
+        )
+
+    def execute_method(self, model: str, method: str, record_ids: list, kwargs: dict = None) -> any:
+        uid = self.authenticate()
+        return self.models.execute_kw(
+            self.db, uid, self.password,
+            model, method,
+            [record_ids],
+            kwargs or {},
+        )
+
+    def create(self, model: str, vals: dict) -> int:
+        uid = self.authenticate()
+        return self.models.execute_kw(
+            self.db, uid, self.password,
+            model, "create",
+            [vals],
         )
 
 

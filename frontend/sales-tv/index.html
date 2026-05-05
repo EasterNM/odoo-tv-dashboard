@@ -114,6 +114,30 @@
     .card-new { animation: flash 2s ease-out; }
 
     main { flex: 1; overflow: hidden; padding: 0; }
+
+    /* ── QR code ── */
+    #qr-corner {
+      position: fixed;
+      bottom: 1rem;
+      right: 1rem;
+      background: #fff;
+      padding: 0.45rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.2rem;
+      cursor: pointer;
+    }
+    #qr-corner img, #qr-corner canvas { width: 90px !important; height: 90px !important; display: block; }
+    #qr-corner span {
+      font-size: 0.6rem;
+      color: #374151;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+    }
   </style>
 </head>
 <body class="sales">
@@ -132,8 +156,22 @@
     </div>
   </main>
 
+  <!-- QR code corner -->
+  <div id="qr-corner" onclick="window.open(window.location.origin+'/mobile/receive-bill','_blank')" title="สแกนเพื่อรับบิล">
+    <div id="qr-box"></div>
+    <span>รับบิล</span>
+  </div>
+
+  <script src="/static/qrcode.min.js"></script>
   <script src="/static/tv.js"></script>
   <script>
+    new QRCode(document.getElementById('qr-box'), {
+      text:  window.location.origin + '/mobile/receive-bill',
+      width: 90, height: 90,
+      colorDark: '#1a1a2e', colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.H
+    });
+
     let prevIds = new Set();
 
     function renderCard(p) {
