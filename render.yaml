@@ -2,7 +2,7 @@ services:
   - type: web
     name: odoo-tv-dashboard
     runtime: docker
-    dockerfilePath: ./docker/Dockerfile
+    dockerfilePath: ./Dockerfile
     dockerContext: .
     region: singapore
     plan: free
