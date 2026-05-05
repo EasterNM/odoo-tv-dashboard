@@ -18,6 +18,11 @@ def service_worker():
     return FileResponse(SHARED_DIR / "sw.js", media_type="application/javascript")
 
 
+@router.get("/health")
+def health():
+    return {"ok": True}
+
+
 @router.get("/api/sales/ready-to-invoice")
 def sales_ready_to_invoice():
     try:
