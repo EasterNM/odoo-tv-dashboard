@@ -6,7 +6,11 @@ from services.odoo_client import odoo
 
 DATE_FROM = "2026-05-01 00:00:00"
 
-PICKING_FIELDS = ["name", "origin", "partner_id", "state", "sale_id"]
+PICKING_FIELDS = [
+    "name", "origin", "partner_id", "state", "sale_id",
+    "package_level_ids",               # จำนวน package ที่แพ็คแล้ว
+    "move_line_ids_without_package",   # รายการที่ยังไม่มี package
+]
 
 STATE_LABEL = {
     "draft":     "รอดำเนินการ",
@@ -77,6 +81,8 @@ def get_transport_pickings() -> list:
             "name":        p["name"],
             "state":       p.get("state", ""),
             "state_label": STATE_LABEL.get(p.get("state", ""), p.get("state", "")),
+            "packages":    len(p.get("package_level_ids") or []),
+            "unpackaged":  len(p.get("move_line_ids_without_package") or []),
         })
 
     # 5. แปลงเป็น list เรียง route ตาม ROUTE_ORDER, "ยังไม่ระบุ" ไว้ท้าย
@@ -90,7 +96,9 @@ def get_transport_pickings() -> list:
         for carrier, sos in sorted(carriers.items(), key=lambda x: (x[0] == NO_CARRIER, x[0])):
             so_list = sorted(sos.values(), key=lambda s: s["so"], reverse=True)
             for row in so_list:
-                row["count"] = len(row["pickings"])
+                row["count"]      = len(row["pickings"])
+                row["packages"]   = sum(p["packages"]   for p in row["pickings"])
+                row["unpackaged"] = sum(p["unpackaged"] for p in row["pickings"])
             carrier_list.append({
                 "carrier":  carrier,
                 "so_count": len(so_list),

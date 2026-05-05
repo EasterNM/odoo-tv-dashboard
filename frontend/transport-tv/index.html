@@ -94,6 +94,15 @@
     .state-waiting   .badge span { color: #f85149; }
     .state-draft     .badge span { color: #8b949e; }
 
+    /* package info */
+    .pkg-row { display: flex; gap: 0.4rem; margin-top: 0.25rem; flex-wrap: wrap; }
+    .pkg-tag {
+      font-size: 0.68rem; padding: 0.1rem 0.4rem; border-radius: 4px;
+      display: flex; align-items: center; gap: 0.2rem;
+    }
+    .pkg-tag.has-pkg  { background: #0d2340; border: 1px solid #388bfd; color: #79c0ff; }
+    .pkg-tag.no-pkg   { background: #2a1f00; border: 1px solid #d29922; color: #d29922; }
+
     /* summary pills */
     .pill { font-size: 0.82rem; padding: 0.15rem 0.6rem; border-radius: 10px;
             background: #0d1117; border: 1px solid #30363d; }
@@ -122,6 +131,13 @@
           <b>${p.name}</b>
           <span>${p.state_label}</span>
         </div>`).join("");
+
+      const pkgTags = [];
+      if (s.packages > 0)
+        pkgTags.push(`<span class="pkg-tag has-pkg">📦 ${s.packages} กล่อง</span>`);
+      if (s.unpackaged > 0)
+        pkgTags.push(`<span class="pkg-tag no-pkg">⚠ ยังไม่แพ็ค ${s.unpackaged} รายการ</span>`);
+
       return `
         <div class="so-card">
           <div class="so-top">
@@ -129,6 +145,7 @@
             <span class="so-cnt">${s.count} ใบ</span>
           </div>
           <div class="so-cust">${s.customer}</div>
+          ${pkgTags.length ? `<div class="pkg-row">${pkgTags.join("")}</div>` : ""}
           <div class="badges">${badges}</div>
         </div>`;
     }
