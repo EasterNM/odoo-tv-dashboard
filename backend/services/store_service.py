@@ -27,11 +27,14 @@ COLUMNS = ["pick", "pack", "delivery"]
 
 
 def get_store_pickings() -> dict:
+    DATE_FROM = "2026-05-01 00:00:00"
+
     # query คลังหลัก: ต้องมี origin (SO)
     main_records = odoo.search_read("stock.picking", [
         ("state", "not in", ["cancel", "done"]),
         ("picking_type_id", "in", list(MAIN_TYPE_BY_ID.keys())),
         ("origin", "!=", False),
+        ("create_date", ">=", DATE_FROM),
     ], PICKING_FIELDS, limit=500)
 
     # หา partner_id ที่มีของออกจากคลังหลัก
@@ -46,6 +49,7 @@ def get_store_pickings() -> dict:
         ("state", "not in", ["cancel", "done"]),
         ("picking_type_id", "in", list(CLAIM_TYPE_BY_ID.keys())),
         ("partner_id", "in", list(main_partners)),
+        ("create_date", ">=", DATE_FROM),
     ], PICKING_FIELDS, limit=200) if main_partners else []
 
     records = main_records + claim_records
