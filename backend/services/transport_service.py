@@ -8,8 +8,7 @@ DATE_FROM = "2026-05-01 00:00:00"
 
 PICKING_FIELDS = [
     "name", "origin", "partner_id", "state", "sale_id",
-    "package_level_ids",               # จำนวน package ที่แพ็คแล้ว
-    "move_line_ids_without_package",   # รายการที่ยังไม่มี package
+    "package_level_ids",   # จำนวน package
 ]
 
 STATE_LABEL = {
@@ -42,14 +41,14 @@ def get_transport_pickings() -> list:
     if not pickings:
         return []
 
-    # 2. เก็บ sale_id → picking info
+    # 2. รวบรวม sale_ids
     sale_ids = list({p["sale_id"][0] for p in pickings if p.get("sale_id")})
 
-    # 3. ดึง sale.order เพื่อเอา route + carrier
+    # 3. ดึง sale.order → route + carrier
     so_map: dict[int, dict] = {}
     if sale_ids:
         orders = odoo.search_read("sale.order", [("id", "in", sale_ids)], [
-            "id", "name",
+            "id",
             "x_studio_selection_field_92b_1jnor75f1",  # เส้นทางการจัดส่ง
             "carrier_id",                               # วิธีการจัดส่ง
         ], limit=len(sale_ids) + 10)
@@ -57,9 +56,21 @@ def get_transport_pickings() -> list:
             so_map[o["id"]] = {
                 "route":   o.get("x_studio_selection_field_92b_1jnor75f1") or NO_ROUTE,
                 "carrier": o["carrier_id"][1] if o.get("carrier_id") else NO_CARRIER,
+                "qty":     0,
             }
 
-    # 4. จัดกลุ่ม route → carrier → SO
+        # 4. ดึง sale.order.line → sum product_uom_qty ต่อ SO
+        lines = odoo.search_read("sale.order.line",
+            [("order_id", "in", sale_ids)],
+            ["order_id", "product_uom_qty"],
+            limit=5000,
+        )
+        for l in lines:
+            so_id = l["order_id"][0]
+            if so_id in so_map:
+                so_map[so_id]["qty"] += l["product_uom_qty"]
+
+    # 5. จัดกลุ่ม route → carrier → SO
     groups: dict[str, dict[str, dict]] = {}
 
     for p in pickings:
@@ -75,14 +86,18 @@ def get_transport_pickings() -> list:
         if carrier not in groups[route]:
             groups[route][carrier] = {}
         if so_name not in groups[route][carrier]:
-            groups[route][carrier][so_name] = {"so": so_name, "customer": customer, "pickings": []}
+            groups[route][carrier][so_name] = {
+                "so":       so_name,
+                "customer": customer,
+                "qty":      so_info.get("qty", 0),   # จำนวนสินค้ารวมจาก SO line
+                "pickings": [],
+            }
 
         groups[route][carrier][so_name]["pickings"].append({
             "name":        p["name"],
             "state":       p.get("state", ""),
             "state_label": STATE_LABEL.get(p.get("state", ""), p.get("state", "")),
             "packages":    len(p.get("package_level_ids") or []),
-            "unpackaged":  len(p.get("move_line_ids_without_package") or []),
         })
 
     # 5. แปลงเป็น list เรียง route ตาม ROUTE_ORDER, "ยังไม่ระบุ" ไว้ท้าย
@@ -96,9 +111,8 @@ def get_transport_pickings() -> list:
         for carrier, sos in sorted(carriers.items(), key=lambda x: (x[0] == NO_CARRIER, x[0])):
             so_list = sorted(sos.values(), key=lambda s: s["so"], reverse=True)
             for row in so_list:
-                row["count"]      = len(row["pickings"])
-                row["packages"]   = sum(p["packages"]   for p in row["pickings"])
-                row["unpackaged"] = sum(p["unpackaged"] for p in row["pickings"])
+                row["count"]    = len(row["pickings"])
+                row["packages"] = sum(p["packages"] for p in row["pickings"])
             carrier_list.append({
                 "carrier":  carrier,
                 "so_count": len(so_list),
