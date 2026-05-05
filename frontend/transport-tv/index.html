@@ -7,15 +7,22 @@
   <link rel="stylesheet" href="/static/tv.css">
   <style>
     body { overflow: hidden; }
-    main { padding: 0.6rem 0.8rem; overflow: hidden; }
+    main {
+      padding: 0.6rem 0.8rem;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
 
     /* ── route row grid ── */
     .route-grid {
       display: flex;
       gap: 0.6rem;
-      height: 100%;
-      overflow-x: auto;
-      align-items: flex-start;
+      flex: 1;              /* ใช้ flex แทน height:100% */
+      overflow-x: auto;     /* scroll แนวนอน */
+      overflow-y: hidden;
+      align-items: stretch; /* ทำให้ทุก column สูงเท่ากัน */
+      min-height: 0;
     }
 
     /* ── route column ── */
@@ -26,8 +33,7 @@
       border-radius: 10px;
       display: flex;
       flex-direction: column;
-      max-height: 100%;
-      overflow: hidden;
+      overflow: hidden;     /* column เองไม่ scroll นอก — route-body จัดการแทน */
     }
 
     .route-header {
