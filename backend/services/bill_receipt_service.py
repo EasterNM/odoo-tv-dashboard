@@ -2,8 +2,10 @@
 Bill Receipt Service
 จัดการการรับบิลจากแผนกเซลล์ — mobile flow
 """
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from services.odoo_client import odoo
+
+THAI_TZ = timezone(timedelta(hours=7))
 
 FIELD_INVOICED = "x_studio_boolean_field_62d_1jnoq6a7n"   # ทำบิลจริงแล้ว
 FIELD_RECEIVED = "x_studio_boolean_field_5bd_1jnp0r53i"   # รับบิลแล้ว
@@ -46,11 +48,17 @@ def confirm_receipt(so_ids: list, signature_b64: str, signer_name: str) -> dict:
                               ["id", "name", "partner_id"], limit=len(so_ids) + 5)
     order_map = {o["id"]: o for o in orders}
 
-    now_str = datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M")
-    so_names = ", ".join(order_map[i]["name"] for i in so_ids if i in order_map)
+    now_utc   = datetime.now(timezone.utc)
+    now_thai  = now_utc.astimezone(THAI_TZ)
+    now_str   = now_thai.strftime("%d/%m/%Y %H:%M")        # แสดงเวลาไทย
+    odoo_dt   = now_utc.strftime("%Y-%m-%d %H:%M:%S")     # Odoo เก็บเป็น UTC
+    so_names  = ", ".join(order_map[i]["name"] for i in so_ids if i in order_map)
 
-    # 1. Write field
-    odoo.write("sale.order", so_ids, {FIELD_RECEIVED: True})
+    # 1. Write field รับบิลแล้ว + เวลารับบิล (เขียนเองเพราะ automation อาจไม่ fire ผ่าน XML-RPC)
+    odoo.write("sale.order", so_ids, {
+        FIELD_RECEIVED: True,
+        "x_studio_datetime_field_is_1jnrfclrr": odoo_dt,
+    })
 
     # 2. สร้าง attachment (signature) และ post chatter ต่อ SO
     sig_data = signature_b64.split(",", 1)[-1]  # ตัด data:image/png;base64, ออก
@@ -69,13 +77,17 @@ def confirm_receipt(so_ids: list, signature_b64: str, signer_name: str) -> dict:
             "mimetype":  "image/png",
         })
 
-        # post chatter
+        # post chatter (ใช้ <p> wrapper — Odoo 18 sanitize ยอมรับ)
+        so_list_html = "".join(
+            f"<li>{order_map[i]['name']}</li>"
+            for i in so_ids if i in order_map
+        )
         odoo.execute_method("sale.order", "message_post", [so_id], {
             "body": (
-                f"<b>✅ รับบิลแล้ว</b><br/>"
-                f"ผู้รับ: <b>{signer_name}</b><br/>"
-                f"วันที่: {now_str}<br/>"
-                f"รับพร้อมกัน: {so_names}"
+                f"<p>✅ <strong>รับบิลแล้ว</strong></p>"
+                f"<p>ผู้รับ: <strong>{signer_name}</strong></p>"
+                f"<p>เวลา: {now_str} น.</p>"
+                f"<p>รับพร้อมกัน:</p><ul>{so_list_html}</ul>"
             ),
             "message_type": "comment",
             "attachment_ids": [att_id],
