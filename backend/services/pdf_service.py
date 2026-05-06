@@ -77,7 +77,7 @@ def build_dispatch_pdf(
 
     # ── Table header ────────────────────────────────────────────────────────
     col = {"#": 8, "SO": 24, "ลูกค้า": 70, "จังหวัด": 28,
-           "ขนส่ง": 40, "บิล": 14, "แพ็ค": 14, "ชิ้น": 14, "หมายเหตุ": 54}
+           "ขนส่ง": 40, "บิล": 14, "ชิ้น": 14, "แพ็ค": 14, "หมายเหตุ": 54}
     row_h = 7
 
     pdf.set_fill_color(26, 26, 46)
@@ -108,8 +108,8 @@ def build_dispatch_pdf(
         pdf.cell(col["จังหวัด"], row_h, s.get("province", ""), align="C", fill=True)
         pdf.cell(col["ขนส่ง"], row_h, s.get("carrier", ""),  fill=True)
         pdf.cell(col["บิล"],   row_h, bill,               align="C", fill=True)
-        pdf.cell(col["แพ็ค"],  row_h, str(pkg),            align="C", fill=True)
         pdf.cell(col["ชิ้น"],  row_h, str(qty),            align="C", fill=True)
+        pdf.cell(col["แพ็ค"],  row_h, str(pkg),            align="C", fill=True)
         pdf.cell(col["หมายเหตุ"], row_h, note,             fill=True)
         pdf.ln(row_h)
 
@@ -118,8 +118,8 @@ def build_dispatch_pdf(
     pdf.set_font("Sarabun", "B", 10)
     sum_w = sum(col[k] for k in ["#", "SO", "ลูกค้า", "จังหวัด", "ขนส่ง", "บิล"])
     pdf.cell(sum_w, row_h, f"รวม {len(sos)} SO", align="R", fill=True)
-    pdf.cell(col["แพ็ค"], row_h, str(total_pack), align="C", fill=True)
     pdf.cell(col["ชิ้น"], row_h, str(total_qty),  align="C", fill=True)
+    pdf.cell(col["แพ็ค"], row_h, str(total_pack), align="C", fill=True)
     pdf.cell(col["หมายเหตุ"], row_h, "", fill=True)
     pdf.ln(row_h + 10)
 
