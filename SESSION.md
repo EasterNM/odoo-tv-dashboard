@@ -226,14 +226,14 @@ pack_qty[so_id] += pack_sign[pid] * qty  # หัก return ออก
 | HTML tag โผล่เป็น text ใน chatter | Odoo 18 sanitize เข้มขึ้น | ใช้ `<p><strong><ul><li>` เท่านั้น |
 | Automation ไม่ fire ผ่าน XML-RPC | `write()` ไม่ trigger automation | เขียน field โดยตรงพร้อมกัน |
 | เวลาใน chatter เป็น UTC | Odoo เก็บ UTC | เขียน UTC ลง Odoo, แสดง Thai time ใน message body |
-| Form view ไม่แสดง field ใหม่ | Studio ไม่ auto-add field เข้า view | ต้อง drag field เข้า form view ใน Studio ด้วยตนเอง |
+| Form view ไม่แสดง field ใหม่ | Studio ไม่ auto-add field เข้า view | drag field เข้า form view ใน Studio ด้วยตนเอง ✅ แก้แล้ว |
 | Return Pack ไม่หักยอด pack_qty | โค้ดเดิม exclude แทนที่จะ subtract | ใช้ `pack_sign` + `origin_returned_move_id` (แก้แล้ว Session 5) |
 
 ---
 
 ## TODO ที่ยังค้างอยู่
-- [ ] เพิ่ม fields ใน Odoo Studio form view ของ `x_tv_dashboard_invoice`
-- [ ] เพิ่ม fields ใน Odoo Studio form view ของ `x_tv_dashboard_dispatc`
+- [x] เพิ่ม fields ใน Odoo Studio form view ของ `x_tv_dashboard_invoice` ✅
+- [x] เพิ่ม fields ใน Odoo Studio form view ของ `x_tv_dashboard_dispatc` ✅
 - [ ] (optional) หน้า list/report สรุปรอบรับบิลแต่ละวัน
 - [ ] (optional) Push notification เมื่อมี SO พร้อมออกบิล
 - [ ] (optional) Export รายงานรายวัน / รายสัปดาห์
