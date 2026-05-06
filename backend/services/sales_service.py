@@ -57,19 +57,24 @@ def _get_problem_so_ids(order_ids: list[int]) -> dict[int, dict]:
     if not pickings:
         return {}
 
-    picking_ids   = [p["id"] for p in pickings]
-    # +1 = forward pick, -1 = return pick (ยอดหักคืน)
-    pick_sign     = {p["id"]: -1 if _is_return(p) else 1 for p in pick_pickings}
-    # return PACK = ของกลับจาก delivery ไม่ใช่ packing error → ตัดออกทั้งก้อน
-    pack_pick_ids = {p["id"] for p in pack_pickings if not _is_return(p)}
-    picking_so    = {p["id"]: p["sale_id"][0] for p in pickings if p.get("sale_id")}
+    picking_ids = [p["id"] for p in pickings]
+    picking_so  = {p["id"]: p["sale_id"][0] for p in pickings if p.get("sale_id")}
 
     moves = odoo.search_read(
         "stock.move",
         [("picking_id", "in", picking_ids), ("state", "=", "done")],
-        ["picking_id", "quantity"],
+        ["picking_id", "quantity", "origin_returned_move_id"],
         limit=10000,
     )
+
+    # Pickings that contain at least one return move — reliable signal in Odoo 18
+    return_by_move: set[int] = {m["picking_id"][0] for m in moves if m.get("origin_returned_move_id")}
+
+    # Merge origin-text detection with move-field detection
+    pick_sign = {p["id"]: -1 if (_is_return(p) or p["id"] in return_by_move) else 1
+                 for p in pick_pickings}
+    pack_sign = {p["id"]: -1 if (_is_return(p) or p["id"] in return_by_move) else 1
+                 for p in pack_pickings}
 
     pick_qty: dict[int, float] = {}
     pack_qty: dict[int, float] = {}
@@ -83,8 +88,9 @@ def _get_problem_so_ids(order_ids: list[int]) -> dict[int, dict]:
         if pid in pick_sign:
             # forward pick: บวก, return pick: ลบ
             pick_qty[so_id] = pick_qty.get(so_id, 0.0) + pick_sign[pid] * qty
-        elif pid in pack_pick_ids:
-            pack_qty[so_id] = pack_qty.get(so_id, 0.0) + qty
+        elif pid in pack_sign:
+            # forward pack: บวก, return pack: ลบ (แก้กรณีแพ็คเกินแล้ว return กลับมาแก้)
+            pack_qty[so_id] = pack_qty.get(so_id, 0.0) + pack_sign[pid] * qty
 
     # SO ที่มีทั้ง pick และ pack แต่ยอดต่างกัน
     problems = {}
