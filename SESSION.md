@@ -4,7 +4,7 @@
 
 ---
 
-## สถานะปัจจุบัน (2026-05-06)
+## สถานะปัจจุบัน (2026-05-06) — อัปเดตล่าสุด
 
 ### URL ที่ใช้งานได้
 | หน้า | URL |
@@ -95,6 +95,17 @@ odoo-tv-dashboard/
 | `x_so_id` | many2one → sale.order | Sale Order |
 | `x_tv_dashboard_invoice_id` | many2one → header | เอกสาร header |
 
+### x_tv_dashboard_dispatc (Dispatch Transfer — Header)
+| Field | Type | Label |
+|-------|------|-------|
+| `x_name` | char | เลขที่เอกสาร (DT2026/0001) |
+| `x_route` | char | เส้นทาง |
+| `x_plate` | char | ทะเบียนรถ |
+| `x_driver` | char | คนขับ |
+| `x_depart_time` | datetime | วันเวลาออกรถ (UTC) |
+| `x_state` | selection | สถานะ: draft / confirmed |
+| `x_so_ids` | many2many → sale.order | รายการ SO ในรอบนี้ |
+
 ### Picking Type IDs
 | ID | ชื่อ | ใช้ใน |
 |----|------|-------|
@@ -141,6 +152,34 @@ Flow ใหม่เมื่อ confirm รับบิล:
 #### Mobile success screen
 - แสดงเลขที่เอกสาร (`IT2026/0001`) หลัง confirm สำเร็จ
 
+### Session 4 (2026-05-06 ต่อเนื่อง)
+
+#### Dispatch Transfer — Odoo Model Integration
+- สร้าง model `TV_dashboard_dispatch` (`x_tv_dashboard_dispatc`) ใน Odoo Studio
+- Fields: `x_name`, `x_route`, `x_plate`, `x_driver`, `x_depart_time` (Datetime), `x_state`, `x_so_ids` (Many2many → sale.order)
+- ตรวจสอบผ่าน XML-RPC API ว่าครบ
+
+#### dispatch_service.py — รีไรท์ใหม่
+Flow ใหม่เมื่อ confirm ขึ้นรถ:
+1. `write sale.order` — `ขึ้นรถจัดส่งแล้ว = True` (**ทำก่อน** เพื่อป้องกัน SO ค้าง)
+2. `_next_dispatch_doc_number()` → สร้างเลข DT2026/0001, 0002, ...
+3. `create x_tv_dashboard_dispatc` — route, plate, driver, datetime, state=confirmed, many2many SO
+4. สร้าง PDF ใบสรุปขึ้นรถ (fpdf2 + Sarabun font, Landscape A4)
+5. `create ir.attachment` แนบ PDF เข้า dispatch record
+6. `message_post` บน dispatch record — แนบ PDF
+7. `message_post` บนแต่ละ SO — ระบุเลขเอกสาร
+
+#### pdf_service.py (ใหม่)
+- ใช้ `fpdf2` + Sarabun font (Thai) — ไม่ต้องการ system dependency
+- Landscape A4, มี info box, ตาราง SO (# | SO | ลูกค้า | จังหวัด | ขนส่ง | บิล | ชิ้น | แพ็ค | หมายเหตุ)
+- summary row รวม SO/ชิ้น/แพ็ค
+- ช่องเซ็นชื่อ 2 ช่อง (คนขับ / ผู้รับของ)
+- Return bytes → base64 → แนบ chatter + ส่ง frontend download
+
+#### Frontend auto-download PDF
+- หลัง confirm สำเร็จ — รับ `pdf_b64` จาก API response
+- decode base64 → Blob → trigger download `.pdf` อัตโนมัติ
+
 ---
 
 ## Bugs ที่ควรรู้ (Odoo 18 quirks)
@@ -157,6 +196,7 @@ Flow ใหม่เมื่อ confirm รับบิล:
 
 ## TODO ที่ยังค้างอยู่
 - [ ] เพิ่ม fields ใน Odoo Studio form view ของ `x_tv_dashboard_invoice` เพื่อให้แสดงข้อมูล
+- [ ] เพิ่ม fields ใน Odoo Studio form view ของ `x_tv_dashboard_dispatc`
 - [ ] (optional) หน้า list/report สรุปรอบรับบิลแต่ละวัน
 
 ---
