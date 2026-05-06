@@ -7,9 +7,11 @@ from services.odoo_client import odoo
 
 FIELD_ROUTE      = "x_studio_selection_field_92b_1jnor75f1"
 FIELD_RECEIVED   = "x_studio_boolean_field_5bd_1jnp0r53i"
-FIELD_DISPATCHED = "x_studio_boolean_field_2dc_1jnrn22ck"   # ขึ้นรถจัดส่งแล้ว
-DATE_FROM      = "2026-05-01 00:00:00"
-THAI_TZ        = timezone(timedelta(hours=7))
+FIELD_DISPATCHED = "x_studio_boolean_field_2dc_1jnrn22ck"
+DATE_FROM        = "2026-05-01 00:00:00"
+THAI_TZ          = timezone(timedelta(hours=7))
+
+DISPATCH_MODEL   = "x_tv_dashboard_dispatc"
 
 ROUTE_ORDER = ["กรุงเทพ", "สายใน", "สายนอก", "รับหน้าบริษัท", "เซลล์ส่งเอง"]
 ROUTE_COLOR = {
@@ -27,6 +29,28 @@ ROUTE_ICON = {
     "เซลล์ส่งเอง":   "🧑‍💼",
 }
 NO_ROUTE = "ยังไม่ระบุเส้นทาง"
+
+
+def _next_dispatch_doc_number(year: int) -> str:
+    prefix = f"DT{year}/"
+    count = odoo.models.execute_kw(
+        odoo.db, odoo.authenticate(), odoo.password,
+        DISPATCH_MODEL, "search_count",
+        [[["x_name", "like", prefix + "%"]]],
+    )
+    return f"{prefix}{count + 1:04d}"
+
+
+def _parse_depart_time(depart_time: str, thai_now: datetime) -> str:
+    """แปลง 'HH:MM' + วันที่ไทย → UTC datetime string สำหรับ Odoo"""
+    try:
+        parts = depart_time.replace(".", ":").split(":")
+        hh, mm = int(parts[0]), int(parts[1])
+        d = thai_now.date()
+        depart_thai = datetime(d.year, d.month, d.day, hh, mm, 0, tzinfo=THAI_TZ)
+        return depart_thai.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    except Exception:
+        return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def _get_pickings() -> list:
@@ -94,7 +118,6 @@ def get_route_sos(route_name: str) -> dict:
     if not route_order_ids:
         return {"route": route_name, "so_count": 0, "sos": []}
 
-    # Qty from order lines
     lines = odoo.search_read("sale.order.line",
         [("order_id", "in", list(route_order_ids))],
         ["order_id", "product_uom_qty"], limit=5000)
@@ -103,7 +126,6 @@ def get_route_sos(route_name: str) -> dict:
         oid = l["order_id"][0]
         qty_map[oid] = qty_map.get(oid, 0) + l["product_uom_qty"]
 
-    # Partner provinces
     partner_ids = list({
         o["partner_id"][0] for o in orders
         if o.get("partner_id") and o["id"] in route_order_ids
@@ -115,7 +137,6 @@ def get_route_sos(route_name: str) -> dict:
         for p in partners
     }
 
-    # Build SO map
     so_map: dict[int, dict] = {}
     for o in orders:
         if o["id"] not in route_order_ids:
@@ -148,33 +169,72 @@ def get_route_sos(route_name: str) -> dict:
 
 def confirm_dispatch(route: str, so_ids: list, plate: str, driver: str,
                      depart_time: str, notes: dict) -> dict:
+    """
+    1. สร้าง x_tv_dashboard_dispatc record
+    2. Mark ขึ้นรถจัดส่งแล้ว = True บน sale.order
+    3. Post chatter บน dispatch record + แต่ละ SO
+    """
     if not so_ids:
         return {"ok": False, "error": "ไม่มี SO ที่เลือก"}
 
-    now_thai = datetime.now(timezone.utc).astimezone(THAI_TZ)
-    date_str = now_thai.strftime("%d/%m/%Y")
+    now_thai  = datetime.now(timezone.utc).astimezone(THAI_TZ)
+    date_str  = now_thai.strftime("%d/%m/%Y")
+    depart_utc = _parse_depart_time(depart_time, now_thai)
 
     orders = odoo.search_read("sale.order", [("id", "in", so_ids)],
         ["id", "name"], limit=len(so_ids) + 5)
     order_map = {o["id"]: o["name"] for o in orders}
-    so_names = ", ".join(order_map.get(i, f"ID:{i}") for i in so_ids)
+    so_names  = ", ".join(order_map.get(i, f"ID:{i}") for i in so_ids)
 
+    # 1. สร้าง dispatch record
+    doc_no = _next_dispatch_doc_number(now_thai.year)
+    dispatch_id = odoo.create(DISPATCH_MODEL, {
+        "x_name":          doc_no,
+        "x_route":         route,
+        "x_plate":         plate,
+        "x_driver":        driver,
+        "x_depart_time":   depart_utc,
+        "x_state":         "confirmed",
+        "x_so_ids":        [[6, 0, so_ids]],
+    })
+
+    # 2. Mark ขึ้นรถแล้ว บน sale.order
     odoo.write("sale.order", so_ids, {FIELD_DISPATCHED: True})
 
+    # 3. Post chatter บน dispatch record
+    so_list_html = "".join(
+        f"<li>{order_map.get(i, f'ID:{i}')}</li>" for i in so_ids
+    )
+    odoo.execute_method(DISPATCH_MODEL, "message_post", [dispatch_id], {
+        "body": (
+            f"<p>🚚 <strong>ยืนยันขึ้นรถ — {doc_no}</strong></p>"
+            f"<p>เส้นทาง: <strong>{route}</strong></p>"
+            f"<p>ทะเบียนรถ: <strong>{plate}</strong> | คนขับ: <strong>{driver}</strong></p>"
+            f"<p>เวลาออกรถ: <strong>{depart_time} น.</strong> | วันที่: {date_str}</p>"
+            f"<p>รายการ SO:</p><ul>{so_list_html}</ul>"
+        ),
+        "message_type": "comment",
+    })
+
+    # 4. Post chatter บนแต่ละ SO
     for so_id in so_ids:
-        note = (notes.get(str(so_id)) or "").strip()
+        note     = (notes.get(str(so_id)) or "").strip()
         note_html = f"<p>หมายเหตุ: {note}</p>" if note else ""
         odoo.execute_method("sale.order", "message_post", [so_id], {
             "body": (
                 f"<p>🚚 <strong>ขึ้นรถแล้ว — เส้นทาง {route}</strong></p>"
-                f"<p>ทะเบียนรถ: <strong>{plate}</strong></p>"
-                f"<p>คนขับ: <strong>{driver}</strong></p>"
-                f"<p>เวลาออกรถ: <strong>{depart_time} น.</strong></p>"
-                f"<p>วันที่: {date_str}</p>"
+                f"<p>ทะเบียนรถ: <strong>{plate}</strong> | คนขับ: <strong>{driver}</strong></p>"
+                f"<p>เวลาออกรถ: <strong>{depart_time} น.</strong> | วันที่: {date_str}</p>"
+                f"<p>เลขที่เอกสาร: <strong>{doc_no}</strong></p>"
                 f"<p>รับพร้อมกัน: {so_names}</p>"
                 f"{note_html}"
             ),
             "message_type": "comment",
         })
 
-    return {"ok": True, "confirmed": len(so_ids), "route": route}
+    return {
+        "ok":        True,
+        "confirmed": len(so_ids),
+        "route":     route,
+        "doc_no":    doc_no,
+    }
