@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Odoo TV Dashboard — Presentation</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --blue: #58a6ff;
+    --green: #3fb950;
+    --purple: #a371f7;
+    --gold: #e3b341;
+    --teal: #39d353;
+    --red: #f85149;
+    --orange: #db6d28;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* ── SLIDE CONTAINER ── */
+  .deck { width: 100%; height: 100vh; position: relative; }
+
+  .slide {
+    position: absolute; inset: 0;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 60px 80px;
+    animation: fadeIn .35s ease;
+  }
+  .slide.active { display: flex; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+  /* ── NAVIGATION ── */
+  .nav {
+    position: fixed;
+    bottom: 28px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 12px; align-items: center;
+    background: rgba(22,27,34,.9);
+    border: 1px solid var(--border);
+    border-radius: 40px;
+    padding: 10px 20px;
+    backdrop-filter: blur(12px);
+    z-index: 100;
+  }
+  .nav button {
+    background: none; border: 1px solid var(--border);
+    color: var(--text); border-radius: 20px;
+    padding: 6px 18px; cursor: pointer; font-size: 14px;
+    transition: background .15s;
+  }
+  .nav button:hover { background: var(--surface); }
+  .nav button:disabled { opacity: .3; cursor: default; }
+  .nav .counter { color: var(--muted); font-size: 13px; min-width: 60px; text-align: center; }
+
+  /* ── PROGRESS BAR ── */
+  .progress {
+    position: fixed; top: 0; left: 0; height: 3px;
+    background: linear-gradient(90deg, var(--blue), var(--purple));
+    transition: width .3s ease;
+    z-index: 200;
+  }
+
+  /* ── SLIDE NUMBER ── */
+  .slide-no {
+    position: fixed; top: 16px; right: 24px;
+    font-size: 12px; color: var(--muted);
+  }
+
+  /* ── TYPOGRAPHY ── */
+  .tag {
+    font-size: 12px; font-weight: 600; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--muted);
+    margin-bottom: 12px;
+  }
+  h1 { font-size: clamp(32px, 5vw, 64px); font-weight: 800; line-height: 1.1; text-align: center; }
+  h2 { font-size: clamp(24px, 3.5vw, 44px); font-weight: 700; line-height: 1.2; }
+  h3 { font-size: clamp(18px, 2.5vw, 28px); font-weight: 600; }
+  p  { font-size: clamp(14px, 1.6vw, 18px); color: var(--muted); line-height: 1.7; }
+  .center { text-align: center; }
+  .highlight { color: var(--blue); }
+  .gap { margin-top: 24px; }
+  .gap-sm { margin-top: 12px; }
+
+  /* ── BADGE ── */
+  .badge {
+    display: inline-block; padding: 4px 12px; border-radius: 20px;
+    font-size: 12px; font-weight: 600; letter-spacing: .5px;
+  }
+  .badge-blue   { background: rgba(88,166,255,.15); color: var(--blue); border: 1px solid rgba(88,166,255,.3); }
+  .badge-green  { background: rgba(63,185,80,.15);  color: var(--green); border: 1px solid rgba(63,185,80,.3); }
+  .badge-purple { background: rgba(163,113,247,.15); color: var(--purple); border: 1px solid rgba(163,113,247,.3); }
+  .badge-gold   { background: rgba(227,179,65,.15); color: var(--gold); border: 1px solid rgba(227,179,65,.3); }
+  .badge-teal   { background: rgba(57,211,83,.15);  color: var(--teal); border: 1px solid rgba(57,211,83,.3); }
+
+  /* ── CARD GRID ── */
+  .grid { display: grid; gap: 16px; width: 100%; }
+  .grid-2 { grid-template-columns: repeat(2, 1fr); }
+  .grid-3 { grid-template-columns: repeat(3, 1fr); }
+  .grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 22px;
+  }
+  .card .card-icon { font-size: 28px; margin-bottom: 10px; }
+  .card h4 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .card p  { font-size: 13px; color: var(--muted); }
+
+  /* colored left-border card */
+  .card-line { border-left: 4px solid; }
+  .card-line.blue   { border-color: var(--blue); }
+  .card-line.green  { border-color: var(--green); }
+  .card-line.purple { border-color: var(--purple); }
+  .card-line.gold   { border-color: var(--gold); }
+  .card-line.teal   { border-color: var(--teal); }
+  .card-line.red    { border-color: var(--red); }
+  .card-line.orange { border-color: var(--orange); }
+
+  /* ── STEP LIST ── */
+  .steps { list-style: none; width: 100%; }
+  .steps li {
+    display: flex; align-items: flex-start; gap: 14px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 15px;
+  }
+  .steps li:last-child { border-bottom: none; }
+  .step-num {
+    min-width: 28px; height: 28px;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+    background: rgba(88,166,255,.2); color: var(--blue);
+    flex-shrink: 0; margin-top: 1px;
+  }
+  .steps li strong { color: var(--text); }
+  .steps li span   { color: var(--muted); font-size: 13px; margin-left: 4px; }
+
+  /* ── TABLE ── */
+  .tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .tbl th {
+    text-align: left; padding: 10px 14px;
+    background: rgba(88,166,255,.08);
+    color: var(--blue); font-size: 12px; letter-spacing: .5px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tbl td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--muted); }
+  .tbl td:first-child { color: var(--text); font-weight: 500; }
+  .tbl tr:last-child td { border-bottom: none; }
+
+  /* ── FLOW DIAGRAM ── */
+  .flow {
+    display: flex; align-items: center; gap: 8px;
+    flex-wrap: wrap; justify-content: center;
+  }
+  .flow-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 16px;
+    font-size: 13px; font-weight: 600;
+    text-align: center;
+  }
+  .flow-arrow { color: var(--muted); font-size: 18px; }
+
+  /* ── BIG STAT ── */
+  .stats { display: flex; gap: 32px; justify-content: center; flex-wrap: wrap; }
+  .stat { text-align: center; }
+  .stat-num {
+    font-size: clamp(40px, 6vw, 72px); font-weight: 800;
+    line-height: 1; background: linear-gradient(135deg, var(--blue), var(--purple));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .stat-label { color: var(--muted); font-size: 14px; margin-top: 6px; }
+
+  /* ── TITLE SLIDE SPECIFIC ── */
+  .title-logo { font-size: 64px; margin-bottom: 20px; }
+  .subtitle { font-size: clamp(14px, 2vw, 20px); color: var(--muted); margin-top: 16px; max-width: 650px; text-align: center; }
+  .badge-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 24px; }
+
+  /* ── SPLIT LAYOUT ── */
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; width: 100%; align-items: start; }
+  .split-3 { display: grid; grid-template-columns: 1fr 1.6fr; gap: 40px; width: 100%; align-items: start; }
+
+  /* ── CHECKMARK LIST ── */
+  .checks { list-style: none; }
+  .checks li { padding: 8px 0; font-size: 15px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 10px; }
+  .checks li:last-child { border-bottom: none; }
+  .checks li::before { content: '✓'; color: var(--green); font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+
+  /* ── ARCHITECTURE ── */
+  .arch-row { display: flex; gap: 0; width: 100%; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+  .arch-col { flex: 1; padding: 16px; background: var(--surface); border-right: 1px solid var(--border); }
+  .arch-col:last-child { border-right: none; }
+  .arch-col h5 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 10px; }
+  .arch-item { font-size: 13px; padding: 4px 0; }
+
+  /* ── PHONE MOCKUP ── */
+  .mockup-row { display: flex; gap: 24px; justify-content: center; align-items: flex-start; flex-wrap: wrap; margin-top: 8px; }
+  .mockup {
+    background: var(--surface); border: 2px solid var(--border);
+    border-radius: 16px; padding: 16px; width: 220px;
+    font-size: 13px;
+  }
+  .mockup-title { font-size: 12px; color: var(--muted); text-align: center; margin-bottom: 10px; text-transform: uppercase; letter-spacing: .5px; }
+  .mockup-screen { background: var(--bg); border-radius: 8px; padding: 12px; min-height: 140px; }
+  .mockup-btn {
+    display: block; width: 100%; padding: 8px;
+    border-radius: 6px; text-align: center;
+    font-size: 12px; font-weight: 600; margin-top: 6px;
+  }
+  .btn-blue   { background: rgba(88,166,255,.2); color: var(--blue); }
+  .btn-green  { background: rgba(63,185,80,.2);  color: var(--green); }
+  .btn-purple { background: rgba(163,113,247,.2); color: var(--purple); }
+
+  /* ── SLIDE BACKGROUNDS ── */
+  .slide-1  { background: radial-gradient(ellipse at 60% 20%, rgba(88,166,255,.08) 0%, transparent 60%), var(--bg); }
+  .slide-end{ background: radial-gradient(ellipse at 40% 60%, rgba(163,113,247,.1) 0%, transparent 60%), var(--bg); }
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+<div class="slide-no" id="slideNo"></div>
+
+<div class="deck" id="deck">
+
+  <!-- ══ SLIDE 1: TITLE ══════════════════════════════════════════════════════ -->
+  <div class="slide slide-1 active">
+    <div class="title-logo">📺</div>
+    <div class="tag">Internal Tool Presentation</div>
+    <h1>Odoo TV Dashboard</h1>
+    <p class="subtitle">
+      ระบบ Dashboard Real-time สำหรับคลังสินค้าและการจัดส่ง<br>
+      เชื่อมต่อ Odoo 18 ผ่าน XML-RPC — รองรับ TV · มือถือ · Tablet
+    </p>
+    <div class="badge-row">
+      <span class="badge badge-blue">FastAPI</span>
+      <span class="badge badge-green">Python 3.12</span>
+      <span class="badge badge-purple">Odoo 18</span>
+      <span class="badge badge-gold">PWA</span>
+      <span class="badge badge-teal">Render.com</span>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 2: ปัญหาก่อนมีระบบ ════════════════════════════════════════════ -->
+  <div class="slide">
+    <div class="tag">Context</div>
+    <h2>ปัญหาก่อนมีระบบนี้</h2>
+    <div class="gap"></div>
+    <div class="grid grid-2" style="max-width:860px;">
+      <div class="card card-line red">
+        <div class="card-icon">📋</div>
+        <h4>ไม่รู้ว่าบิลไหนพร้อมส่งออก</h4>
+        <p>ต้องเปิด Odoo เช็กทีละ SO ไม่มีหน้ารวมสถานะ</p>
+      </div>
+      <div class="card card-line red">
+        <div class="card-icon">🔄</div>
+        <h4>ขั้นตอนรับบิลไม่มีหลักฐาน</h4>
+        <p>ส่งบิลปากเปล่า ไม่มีลายเซ็น ไม่มีเลขที่เอกสาร</p>
+      </div>
+      <div class="card card-line red">
+        <div class="card-icon">🚛</div>
+        <h4>ยืนยันขึ้นรถไม่มีเอกสาร</h4>
+        <p>จำกันเอง ไม่มีบันทึกรถ/คนขับ/เวลาออกรถ</p>
+      </div>
+      <div class="card card-line red">
+        <div class="card-icon">⚠️</div>
+        <h4>Pick ≠ Pack ไม่รู้ทันที</h4>
+        <p>ยอดผิดพลาดค้นพบช้า ต้องมานับซ้ำ</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 3: SYSTEM OVERVIEW ══════════════════════════════════════════ -->
+  <div class="slide">
+    <div class="tag">System Overview</div>
+    <h2>ระบบทำอะไรได้บ้าง</h2>
+    <div class="gap"></div>
+    <div class="grid grid-3" style="max-width:960px;">
+      <div class="card card-line blue">
+        <div class="card-icon">📺</div>
+        <h4>3 หน้า TV Dashboard</h4>
+        <p>Sales · Store · Transport แสดงสถานะ Real-time รีเฟรชทุก 10 วิ</p>
+      </div>
+      <div class="card card-line gold">
+        <div class="card-icon">📱</div>
+        <h4>Mobile รับบิล (PWA)</h4>
+        <p>เซ็น + ยืนยัน → สร้างเอกสาร IT2026/XXXX ใน Odoo อัตโนมัติ</p>
+      </div>
+      <div class="card card-line teal">
+        <div class="card-icon">📟</div>
+        <h4>Tablet ขึ้นรถ (PWA)</h4>
+        <p>เลือก SO → ยืนยัน → PDF + เอกสาร DT2026/XXXX ใน Odoo อัตโนมัติ</p>
+      </div>
+    </div>
+    <div class="gap"></div>
+    <div class="arch-row" style="max-width:960px;">
+      <div class="arch-col">
+        <h5>Frontend</h5>
+        <div class="arch-item">🖥️ Sales TV</div>
+        <div class="arch-item">🏪 Store TV</div>
+        <div class="arch-item">🚚 Transport TV</div>
+        <div class="arch-item">📱 Mobile PWA</div>
+        <div class="arch-item">📟 Tablet PWA</div>
+      </div>
+      <div class="arch-col">
+        <h5>Backend (FastAPI)</h5>
+        <div class="arch-item">sales_service.py</div>
+        <div class="arch-item">store_service.py</div>
+        <div class="arch-item">transport_service.py</div>
+        <div class="arch-item">bill_receipt_service.py</div>
+        <div class="arch-item">dispatch_service.py + pdf_service.py</div>
+      </div>
+      <div class="arch-col">
+        <h5>Odoo 18 (XML-RPC)</h5>
+        <div class="arch-item">sale.order</div>
+        <div class="arch-item">stock.picking / stock.move</div>
+        <div class="arch-item">x_tv_dashboard_invoice</div>
+        <div class="arch-item">x_tv_dashboard_dispatc</div>
+        <div class="arch-item">ir.attachment · chatter</div>
+      </div>
+      <div class="arch-col">
+        <h5>Hosting</h5>
+        <div class="arch-item">🐳 Docker</div>
+        <div class="arch-item">☁️ Render.com</div>
+        <div class="arch-item">📍 Singapore</div>
+        <div class="arch-item">🔔 UptimeRobot</div>
+        <div class="arch-item">🔄 Auto-deploy</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 4: SALES TV ══════════════════════════════════════════════════ -->
+  <div class="slide">
+    <div class="tag">Feature 1</div>
+    <h2 class="highlight">Sales TV</h2>
+    <p class="gap-sm center" style="max-width:600px;">แสดงรายการ SO พร้อมออกบิล จัดกลุ่มตาม<strong style="color:var(--text)"> เส้นทางจัดส่ง</strong> — รีเฟรชอัตโนมัติทุก 10 วิ</p>
+    <div class="gap"></div>
+    <div class="split" style="max-width:920px;">
+      <div>
+        <h3 style="margin-bottom:16px;">สิ่งที่แสดง</h3>
+        <ul class="checks">
+          <li>จัดกลุ่มตามเส้นทาง: กรุงเทพ / สายใน / สายนอก</li>
+          <li>ชื่อลูกค้า · เลขบิล easy-acc · สถานะทำบิล</li>
+          <li>ไฮไลต์ SO ที่ยอด Pick ≠ Pack (สีเหลือง)</li>
+          <li>QR code ด้านล่าง → สแกนเปิด Mobile รับบิล</li>
+          <li>Dark theme เหมาะจอ TV ขนาดใหญ่</li>
+        </ul>
+      </div>
+      <div>
+        <h3 style="margin-bottom:16px;">ประโยชน์</h3>
+        <div class="card card-line blue gap-sm">
+          <h4>ทีมเซลล์เห็นภาพรวมทันที</h4>
+          <p>ไม่ต้องเปิด Odoo ค้นทีละออเดอร์</p>
+        </div>
+        <div class="card card-line gold gap-sm">
+          <h4>QR → Mobile ต่อเนื่อง</h4>
+          <p>เซลล์เปิด TV แล้วพนักงานสแกนรับบิลได้เลย</p>
+        </div>
+        <div class="card card-line red gap-sm">
+          <h4>เห็นปัญหา Pick≠Pack ทันที</h4>
+          <p>แจ้งเตือนก่อนบิล เพื่อแก้ไขก่อนส่งของ</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 5: STORE TV ══════════════════════════════════════════════════ -->
+  <div class="slide">
+    <div class="tag">Feature 2</div>
+    <h2 class="highlight" style="color:var(--green);">Store TV</h2>
+    <p class="gap-sm center">แสดงสถานะงานคลัง <strong style="color:var(--text);">5 คอลัมน์</strong> แบบ Kanban Board บนจอ TV</p>
+    <div class="gap"></div>
+    <div class="grid grid-4" style="max-width:960px; gap:12px;">
+      <div class="card" style="border-color: #1f6feb44;">
+        <div class="card-icon">🔵</div>
+        <h4>PICK</h4>
+        <p>งาน picking ที่ยังค้างอยู่ ยังไม่เสร็จ</p>
+      </div>
+      <div class="card" style="border-color: #238636aa;">
+        <div class="card-icon">🟢</div>
+        <h4>PACK</h4>
+        <p>งาน packing ที่ยังค้างอยู่ ยังไม่เสร็จ</p>
+      </div>
+      <div class="card" style="border-color: #8957e5aa;">
+        <div class="card-icon">🟣</div>
+        <h4>DELIVERY</h4>
+        <p>งานรอส่ง ยังไม่ออกรถ รวมคลังเคลม</p>
+      </div>
+      <div class="card" style="border-color: var(--red);">
+        <div class="card-icon">⚠️</div>
+        <h4>Pick ≠ Pack</h4>
+        <p>SO ที่ยอดไม่ตรง — แจ้งเตือนอัตโนมัติ</p>
+      </div>
+    </div>
+    <div class="gap"></div>
+    <div class="card" style="max-width:680px; text-align:center;">
+      <h4 style="margin-bottom:8px;">คอลัมน์ "รวม SO" — Cross-column View</h4>
+      <p>มองเห็น SO หนึ่งใบอยู่ในขั้นตอนไหนบ้าง พร้อม <strong style="color:var(--text)">elapsed time</strong> นานแค่ไหนแล้ว (เขียว → เหลือง → แดง)</p>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 6: TRANSPORT TV ═════════════════════════════════════════════ -->
+  <div class="slide">
+    <div class="tag">Feature 3</div>
+    <h2 class="highlight" style="color:var(--purple);">Transport TV</h2>
+    <p class="gap-sm center">แสดง Delivery Orders จัดกลุ่มตาม <strong style="color:var(--text)">Route → ขนส่ง → SO Card</strong></p>
+    <div class="gap"></div>
+    <div class="flow" style="max-width:800px;">
+      <div class="flow-box">📍 เส้นทาง<br><small>กรุงเทพ / สายใน / ...</small></div>
+      <div class="flow-arrow">›</div>
+      <div class="flow-box">🚚 ขนส่ง<br><small>Kerry / Flash / ...</small></div>
+      <div class="flow-arrow">›</div>
+      <div class="flow-box">📦 SO Card<br><small>ลูกค้า · แพ็ค · ชิ้น</small></div>
+    </div>
+    <div class="gap"></div>
+    <div class="grid grid-2" style="max-width:760px;">
+      <div class="card card-line purple">
+        <h4>แต่ละ SO Card แสดง</h4>
+        <p>ชื่อลูกค้า · จังหวัด · จำนวน package · จำนวนชิ้น · สถานะรับบิล</p>
+      </div>
+      <div class="card card-line purple">
+        <h4>ประโยชน์สำหรับ Logistics</h4>
+        <p>หัวหน้าขนส่งเห็นภาพรวมการจัดส่งทั้งวัน แบ่งงานได้เลยจากจอ TV</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 7: MOBILE รับบิล ═══════════════════════════════════════════ -->
+  <div class="slide">
+    <div class="tag">Feature 4 — PWA</div>
+    <h2 class="highlight" style="color:var(--gold);">Mobile รับบิล</h2>
+    <p class="gap-sm center">พนักงาน Store รับบิลจากเซลล์ — บันทึกลาย<wbr>เซ็นและสร้างเอกสารใน Odoo ได้จากมือถือ</p>
+    <div class="gap"></div>
+    <div class="split-3" style="max-width:900px; align-items:center;">
+      <div>
+        <ul class="steps">
+          <li><div class="step-num">1</div><div><strong>สแกน QR</strong> <span>จากหน้า Sales TV หรือเปิด URL ตรง</span></div></li>
+          <li><div class="step-num">2</div><div><strong>ติ้กเลือก SO</strong> <span>ที่ได้รับบิลจริง</span></div></li>
+          <li><div class="step-num">3</div><div><strong>กรอกชื่อ + เซ็นลายมือ</strong> <span>บน canvas</span></div></li>
+          <li><div class="step-num">4</div><div><strong>กด "ยืนยัน"</strong> <span>ระบบทำงานอัตโนมัติ</span></div></li>
+          <li><div class="step-num">5</div><div><strong>รับเลขที่เอกสาร</strong> <span style="color:var(--gold);">IT2026/0001</span></div></li>
+        </ul>
+      </div>
+      <div>
+        <h3 style="margin-bottom:14px;">สิ่งที่เกิดขึ้นใน Odoo</h3>
+        <div class="card card-line gold">
+          <p style="color:var(--text); font-size:14px; line-height:1.8;">
+            ✅ สร้าง <strong>Invoice Transfer</strong> (IT2026/XXXX)<br>
+            ✅ บันทึกชื่อผู้รับ + ลายเซ็น + เวลา<br>
+            ✅ mark <strong>รับบิลแล้ว = True</strong> ทุก SO<br>
+            ✅ แนบลายเซ็น + post chatter แต่ละ SO<br>
+            ✅ เชื่อม SO ผ่าน One2many line
+          </p>
+        </div>
+        <div class="card card-line green gap-sm">
+          <h4>ติดตั้งเป็น PWA ได้เลย</h4>
+          <p>ไม่ต้องโหลดจาก App Store · มีไอคอนบนหน้าจอหลัก · เปิด fullscreen</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 8: TABLET ขึ้นรถ ════════════════════════════════════════════ -->
+  <div class="slide">
+    <div class="tag">Feature 5 — PWA</div>
+    <h2 class="highlight" style="color:#0d8f6f;">Tablet ขึ้นรถ</h2>
+    <p class="gap-sm center">พนักงานคลังยืนยันสินค้าขึ้นรถ — สร้างเอกสาร + PDF สรุปได้ในไม่กี่วินาที</p>
+    <div class="gap"></div>
+    <div class="split-3" style="max-width:960px;">
+      <div>
+        <ul class="steps">
+          <li><div class="step-num">1</div><div><strong>เลือกเส้นทาง</strong> <span>ปุ่มใหญ่แต่ละสาย + จำนวน SO</span></div></li>
+          <li><div class="step-num">2</div><div><strong>ดูตาราง SO</strong> <span>จัดกลุ่มตามขนส่ง · ดู ชิ้น/แพ็ค/สถานะบิล</span></div></li>
+          <li><div class="step-num">3</div><div><strong>ติ้ก SO</strong> <span>ที่ขึ้นรถแล้ว (หรือเลือกทั้งหมด)</span></div></li>
+          <li><div class="step-num">4</div><div><strong>กรอกรถ/คนขับ/เวลา</strong></div></li>
+          <li><div class="step-num">5</div><div><strong>PDF download อัตโนมัติ</strong> <span style="color:#0d8f6f;">+ บันทึก Odoo</span></div></li>
+        </ul>
+      </div>
+      <div>
+        <h3 style="margin-bottom:14px;">สิ่งที่เกิดขึ้น</h3>
+        <div class="card card-line teal">
+          <p style="color:var(--text); font-size:14px; line-height:1.8;">
+            ✅ สร้าง <strong>Dispatch Transfer</strong> (DT2026/XXXX)<br>
+            ✅ link SO ผ่าน Many2many<br>
+            ✅ mark <strong>ขึ้นรถแล้ว = True</strong> ทุก SO<br>
+            ✅ สร้าง <strong>PDF ใบสรุป</strong> (A4 Landscape, Thai)<br>
+            ✅ แนบ PDF เข้า chatter ของ Dispatch record<br>
+            ✅ post chatter แต่ละ SO ระบุเลขเอกสาร
+          </p>
+        </div>
+        <div class="card card-line orange gap-sm">
+          <h4>PDF ใบสรุปขึ้นรถ</h4>
+          <p>มีข้อมูลรถ · ตาราง SO ทุกใบ · ยอดรวม · ช่องเซ็นชื่อคนขับ/ผู้รับ</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 9: ODOO INTEGRATION ══════════════════════════════════════════ -->
+  <div class="slide">
+    <div class="tag">Technical Deep Dive</div>
+    <h2>Odoo Integration</h2>
+    <p class="gap-sm center">ระบบดึงและเขียนข้อมูลตรงผ่าน <strong style="color:var(--text)">XML-RPC</strong> — ไม่ต้องแก้ source code Odoo</p>
+    <div class="gap"></div>
+    <div class="grid grid-2" style="max-width:900px;">
+      <div>
+        <h3 style="margin-bottom:12px; font-size:16px;">Custom Models ที่สร้างใน Odoo Studio</h3>
+        <table class="tbl">
+          <thead>
+            <tr><th>Model</th><th>ใช้สำหรับ</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>x_tv_dashboard_invoice</td><td>บันทึกรอบรับบิล IT2026/XXXX</td></tr>
+            <tr><td>x_tv_dashboard_invoice_line</td><td>รายการ SO แต่ละบิล</td></tr>
+            <tr><td>x_tv_dashboard_dispatc</td><td>บันทึกรอบขึ้นรถ DT2026/XXXX</td></tr>
+          </tbody>
+        </table>
+        <div class="gap-sm"></div>
+        <h3 style="margin-bottom:12px; font-size:16px;">Custom Fields บน sale.order</h3>
+        <table class="tbl">
+          <thead><tr><th>Field</th><th>ความหมาย</th></tr></thead>
+          <tbody>
+            <tr><td>เส้นทางการจัดส่ง</td><td>กรุงเทพ / สายใน / สายนอก ...</td></tr>
+            <tr><td>รับบิลแล้ว</td><td>Boolean + เวลารับบิล</td></tr>
+            <tr><td>ขึ้นรถแล้ว</td><td>Boolean</td></tr>
+            <tr><td>เลขบิล easy-acc</td><td>เลขอ้างอิงจากระบบ ERP เดิม</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <h3 style="margin-bottom:12px; font-size:16px;">Thread-safe XML-RPC Client</h3>
+        <div class="card card-line blue">
+          <p style="font-size:13px; line-height:1.8; color:var(--text);">
+            odoo_client.py ใช้ <strong>thread-local proxy</strong><br>
+            รองรับ concurrent request จาก FastAPI<br>
+            authenticate ครั้งเดียว cache uid ไว้
+          </p>
+        </div>
+        <div class="card card-line green gap-sm">
+          <h4>ไม่มี Database แยก</h4>
+          <p>ดึงข้อมูลตรงจาก Odoo ทุกครั้ง ไม่มี sync lag · ข้อมูลถูกต้องเสมอ</p>
+        </div>
+        <div class="card card-line purple gap-sm">
+          <h4>Odoo 18 Quirks ที่แก้ได้แล้ว</h4>
+          <p>attachment_ids ใช้ [att_id] · HTML sanitize ใช้ &lt;p&gt;&lt;ul&gt; · many2many ใช้ [[6,0,ids]]</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 10: TECH STACK ════════════════════════════════════════════ -->
+  <div class="slide">
+    <div class="tag">Technical</div>
+    <h2>Tech Stack</h2>
+    <div class="gap"></div>
+    <div class="grid grid-3" style="max-width:900px;">
+      <div class="card card-line blue">
+        <div class="card-icon">⚡</div>
+        <h4>Backend</h4>
+        <p>
+          <strong>Python 3.12</strong> + FastAPI<br>
+          XML-RPC (built-in xmlrpc.client)<br>
+          fpdf2 + Sarabun Thai font<br>
+          uvicorn ASGI server
+        </p>
+      </div>
+      <div class="card card-line green">
+        <div class="card-icon">🌐</div>
+        <h4>Frontend</h4>
+        <p>
+          <strong>Vanilla HTML/CSS/JS</strong><br>
+          ไม่มี framework (React/Vue)<br>
+          PWA: Service Worker + Manifest<br>
+          Auto-refresh every 10s
+        </p>
+      </div>
+      <div class="card card-line purple">
+        <div class="card-icon">☁️</div>
+        <h4>Infrastructure</h4>
+        <p>
+          <strong>Docker</strong> container<br>
+          Render.com (Singapore, Free)<br>
+          GitHub → Auto-deploy<br>
+          UptimeRobot keep-alive
+        </p>
+      </div>
+    </div>
+    <div class="gap"></div>
+    <div class="card" style="max-width:900px; text-align:center; border-color:var(--border);">
+      <p style="font-size:14px;">
+        <span class="badge badge-green" style="margin:4px;">Zero Database</span>
+        <span class="badge badge-blue" style="margin:4px;">Zero Framework</span>
+        <span class="badge badge-purple" style="margin:4px;">Zero Mobile App</span>
+        <span class="badge badge-gold" style="margin:4px;">Zero Cost Hosting</span>
+        <span class="badge badge-teal" style="margin:4px;">Auto Deploy</span>
+      </p>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 11: ข้อดี ════════════════════════════════════════════════ -->
+  <div class="slide">
+    <div class="tag">Benefits</div>
+    <h2>ข้อดีของระบบนี้</h2>
+    <div class="gap"></div>
+    <div class="grid grid-2" style="max-width:920px;">
+      <div class="card card-line green">
+        <div class="card-icon">🔗</div>
+        <h4>เชื่อมต่อ Odoo โดยตรง</h4>
+        <p>ไม่มีระบบกลางเพิ่ม · ไม่ sync · ข้อมูล real-time ถูกต้อง 100% ตลอดเวลา</p>
+      </div>
+      <div class="card card-line blue">
+        <div class="card-icon">📱</div>
+        <h4>PWA ใช้งานได้เหมือน App</h4>
+        <p>ติดตั้งบนมือถือ/tablet ได้เลย มีไอคอน + fullscreen ไม่ต้องลง App Store</p>
+      </div>
+      <div class="card card-line purple">
+        <div class="card-icon">📄</div>
+        <h4>เอกสารครบ ตรวจสอบได้</h4>
+        <p>ทุกรอบรับบิล/ขึ้นรถมีเลขที่เอกสาร · ลายเซ็น · timestamp บันทึกใน Odoo chatter</p>
+      </div>
+      <div class="card card-line gold">
+        <div class="card-icon">🖨️</div>
+        <h4>PDF ใบสรุปอัตโนมัติ</h4>
+        <p>กด confirm → PDF download ทันที + แนบ chatter ไม่ต้องพิมพ์เอง</p>
+      </div>
+      <div class="card card-line teal">
+        <div class="card-icon">⚡</div>
+        <h4>เบา เร็ว ไม่มี Dependency</h4>
+        <p>Vanilla JS ไม่มี framework · Backend Python บริสุทธิ์ · build เร็ว deploy เร็ว</p>
+      </div>
+      <div class="card card-line orange">
+        <div class="card-icon">💸</div>
+        <h4>ต้นทุน $0</h4>
+        <p>Render.com Free tier + UptimeRobot free · ไม่มีค่าใช้จ่าย infrastructure รายเดือน</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 12: DEPLOYMENT & URLs ═══════════════════════════════════════ -->
+  <div class="slide">
+    <div class="tag">Deployment</div>
+    <h2>Deploy & Access</h2>
+    <div class="gap"></div>
+    <div class="split" style="max-width:900px; align-items:start;">
+      <div>
+        <h3 style="margin-bottom:14px; font-size:18px;">URL ที่ใช้งานได้</h3>
+        <table class="tbl">
+          <thead><tr><th>หน้า</th><th>อุปกรณ์</th></tr></thead>
+          <tbody>
+            <tr><td>/</td><td>🏠 Home (ทุกอุปกรณ์)</td></tr>
+            <tr><td>/sales</td><td>📺 Sales TV</td></tr>
+            <tr><td>/store</td><td>📺 Store TV</td></tr>
+            <tr><td>/transport</td><td>📺 Transport TV</td></tr>
+            <tr><td>/mobile/receive-bill</td><td>📱 มือถือ (PWA)</td></tr>
+            <tr><td>/tablet/dispatch</td><td>📟 Tablet (PWA)</td></tr>
+            <tr><td>/docs</td><td>📖 API Docs</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <h3 style="margin-bottom:14px; font-size:18px;">CI/CD Pipeline</h3>
+        <div class="flow" style="flex-direction:column; align-items:flex-start; gap:4px;">
+          <div class="flow-box" style="width:100%;">✏️ แก้โค้ด local</div>
+          <div class="flow-arrow" style="padding-left:40px;">↓</div>
+          <div class="flow-box" style="width:100%;">📤 git push origin main</div>
+          <div class="flow-arrow" style="padding-left:40px;">↓</div>
+          <div class="flow-box" style="width:100%;">🐳 Render builds Docker image</div>
+          <div class="flow-arrow" style="padding-left:40px;">↓</div>
+          <div class="flow-box" style="width:100%; border-color:var(--green);">✅ Deploy สำเร็จ (3-5 นาที)</div>
+        </div>
+        <div class="card card-line green gap-sm">
+          <p style="font-size:13px;">UptimeRobot ping <code>/health</code> ทุก 5 นาที ป้องกัน Render sleep</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 13: STATS ════════════════════════════════════════════════ -->
+  <div class="slide">
+    <div class="tag">Summary</div>
+    <h2 class="center">ตัวเลขที่น่าสนใจ</h2>
+    <div class="gap"></div>
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-num">6</div>
+        <div class="stat-label">หน้าที่ใช้งานได้</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">16</div>
+        <div class="stat-label">API Endpoints</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">2</div>
+        <div class="stat-label">Odoo Custom Models</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">$0</div>
+        <div class="stat-label">ค่า Hosting/เดือน</div>
+      </div>
+    </div>
+    <div class="gap"></div>
+    <div class="grid grid-3" style="max-width:840px; gap:12px;">
+      <div class="card" style="text-align:center;">
+        <div style="font-size:32px; margin-bottom:8px;">📺</div>
+        <div style="font-size:13px; color:var(--muted);">TV Auto-refresh<br><strong style="color:var(--text);">ทุก 10 วินาที</strong></div>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div style="font-size:32px; margin-bottom:8px;">📄</div>
+        <div style="font-size:13px; color:var(--muted);">Document Numbering<br><strong style="color:var(--text);">IT/DT + ปี + XXXX</strong></div>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div style="font-size:32px; margin-bottom:8px;">🔏</div>
+        <div style="font-size:13px; color:var(--muted);">Digital Signature<br><strong style="color:var(--text);">PNG base64 → Odoo</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 14: ROADMAP ══════════════════════════════════════════════ -->
+  <div class="slide">
+    <div class="tag">What's Next</div>
+    <h2>สิ่งที่ทำได้ต่อ</h2>
+    <div class="gap"></div>
+    <div class="grid grid-2" style="max-width:840px;">
+      <div>
+        <h3 style="margin-bottom:14px; font-size:17px; color:var(--muted);">TODO ที่ค้างอยู่</h3>
+        <ul class="checks" style="font-size:14px;">
+          <li>เพิ่ม fields เข้า Odoo Studio Form View (Invoice Transfer)</li>
+          <li>เพิ่ม fields เข้า Odoo Studio Form View (Dispatch Transfer)</li>
+        </ul>
+        <div class="gap"></div>
+        <h3 style="margin-bottom:14px; font-size:17px; color:var(--muted);">Optional ต่อยอด</h3>
+        <ul class="checks" style="font-size:14px;">
+          <li>หน้า Report สรุปรอบรับบิลแต่ละวัน</li>
+          <li>Push notification เมื่อมี SO พร้อมออกบิล</li>
+          <li>หน้า Admin ดู history เอกสาร IT/DT</li>
+          <li>Export รายงานรายวัน / รายสัปดาห์</li>
+        </ul>
+      </div>
+      <div>
+        <h3 style="margin-bottom:14px; font-size:17px; color:var(--muted);">Scaling Options</h3>
+        <div class="card card-line blue gap-sm">
+          <h4>Multi-warehouse Support</h4>
+          <p>เพิ่ม filter คลัง เพื่อรองรับหลายสาขา</p>
+        </div>
+        <div class="card card-line green gap-sm">
+          <h4>Role-based Access</h4>
+          <p>แยก Login สำหรับเซลล์ / คลัง / ขนส่ง</p>
+        </div>
+        <div class="card card-line purple gap-sm">
+          <h4>Upgrade Render Plan</h4>
+          <p>$7/เดือน → ไม่มี sleep · response เร็วขึ้น</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 15: CLOSING ══════════════════════════════════════════════ -->
+  <div class="slide slide-end">
+    <div class="title-logo">🚀</div>
+    <div class="tag">Live Now</div>
+    <h1>พร้อมใช้งานแล้ว</h1>
+    <p class="subtitle" style="font-size:18px;">
+      odoo-tv-dashboard.onrender.com
+    </p>
+    <div class="badge-row">
+      <span class="badge badge-blue">Sales TV</span>
+      <span class="badge badge-green">Store TV</span>
+      <span class="badge badge-purple">Transport TV</span>
+      <span class="badge badge-gold">Mobile รับบิล</span>
+      <span class="badge badge-teal">Tablet ขึ้นรถ</span>
+    </div>
+    <div class="gap"></div>
+    <div class="card" style="max-width:580px; text-align:center; border-color:rgba(88,166,255,.3);">
+      <p style="font-size:15px; line-height:1.9; color:var(--text);">
+        Built with <strong>FastAPI + Odoo 18 XML-RPC</strong><br>
+        Deployed on <strong>Render.com</strong> · Singapore Region<br>
+        GitHub: <span style="color:var(--blue);">EasterNM/odoo-tv-dashboard</span>
+      </p>
+    </div>
+  </div>
+
+</div><!-- end deck -->
+
+<!-- NAVIGATION BAR -->
+<div class="nav">
+  <button id="btnPrev" onclick="go(-1)">← ก่อนหน้า</button>
+  <span class="counter" id="counter"></span>
+  <button id="btnNext" onclick="go(1)">ถัดไป →</button>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const TOTAL  = slides.length;
+  let cur = 0;
+
+  function go(dir) {
+    slides[cur].classList.remove('active');
+    cur = Math.max(0, Math.min(TOTAL - 1, cur + dir));
+    slides[cur].classList.add('active');
+    update();
+  }
+
+  function update() {
+    document.getElementById('counter').textContent = `${cur + 1} / ${TOTAL}`;
+    document.getElementById('slideNo').textContent = `${cur + 1} / ${TOTAL}`;
+    document.getElementById('btnPrev').disabled = cur === 0;
+    document.getElementById('btnNext').disabled = cur === TOTAL - 1;
+    document.getElementById('progress').style.width = `${((cur + 1) / TOTAL) * 100}%`;
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') go(1);
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')  go(-1);
+  });
+
+  // Swipe support
+  let tx = 0;
+  document.addEventListener('touchstart', e => tx = e.touches[0].clientX);
+  document.addEventListener('touchend',   e => {
+    const dx = tx - e.changedTouches[0].clientX;
+    if (Math.abs(dx) > 50) go(dx > 0 ? 1 : -1);
+  });
+
+  update();
+</script>
+</body>
+</html>

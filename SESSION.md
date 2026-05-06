@@ -35,15 +35,19 @@ odoo-tv-dashboard/
 │   ├── config/.env                   ← Odoo credentials (ไม่ขึ้น GitHub)
 │   ├── main.py                       ← FastAPI app + static mount
 │   ├── routes/api.py                 ← ทุก endpoint
+│   ├── fonts/
+│   │   ├── Sarabun-Regular.ttf       ← Thai font สำหรับ PDF
+│   │   └── Sarabun-Bold.ttf
 │   └── services/
 │       ├── odoo_client.py            ← XML-RPC client (thread-safe)
 │       ├── sales_service.py          ← Sales TV
 │       ├── store_service.py          ← Store TV (5 columns)
 │       ├── transport_service.py      ← Transport TV
 │       ├── bill_receipt_service.py   ← Mobile รับบิล + Invoice Transfer
-│       └── dispatch_service.py       ← Tablet ขึ้นรถ
+│       ├── dispatch_service.py       ← Tablet ขึ้นรถ
+│       └── pdf_service.py            ← สร้างใบสรุปขึ้นรถ (PDF)
 ├── frontend/
-│   ├── home/index.html               ← หน้าหลัก (ใหม่)
+│   ├── home/index.html               ← หน้าหลัก
 │   ├── sales-tv/index.html
 │   ├── store-tv/index.html
 │   ├── transport-tv/index.html
@@ -55,6 +59,7 @@ odoo-tv-dashboard/
 │       ├── sw.js                     ← Service Worker (PWA)
 │       ├── manifest-receive-bill.json / manifest-dispatch.json
 │       └── icon-receive-bill.svg / icon-dispatch.svg
+├── presentation.html                 ← สไลด์นำเสนอ 15 หน้า (ใหม่)
 ├── Dockerfile                        ← ที่ root สำหรับ Render
 ├── docker-compose.yml
 ├── render.yaml
@@ -128,7 +133,7 @@ odoo-tv-dashboard/
 - **Tablet ขึ้นรถ** (`/tablet/dispatch`) — PWA: เลือกเส้นทาง → ติ้ก SO → กรอกรถ/คนขับ → confirm
 - **Render.com deployment** — ย้ายจาก Fly.io พร้อม `/health` + UptimeRobot
 
-### Session 3 (วันนี้ 2026-05-06)
+### Session 3 (2026-05-06)
 
 #### หน้าหลัก (`/`)
 - สร้าง `frontend/home/index.html` — grid ปุ่มใหญ่ 5 ปุ่ม สีต่างกันแต่ละหน้า + นาฬิกา
@@ -137,48 +142,79 @@ odoo-tv-dashboard/
 #### Invoice Transfer — Odoo Model Integration
 - ออกแบบ data model สำหรับ `x_tv_dashboard_invoice` (header + line)
 - ตรวจสอบ fields ผ่าน Odoo XML-RPC API
-- แนะนำ fields ที่ต้องสร้าง 5 fields
-- verify fields หลังสร้างว่าครบและถูกต้อง
+- แนะนำ fields ที่ต้องสร้าง 5 fields + verify หลังสร้าง
 
 #### bill_receipt_service.py — รีไรท์ใหม่
-Flow ใหม่เมื่อ confirm รับบิล:
-1. `_next_doc_number()` → สร้างเลข IT2026/0001, 0002, ...
+Flow เมื่อ confirm รับบิล:
+1. `_next_doc_number()` → IT2026/0001, 0002, ...
 2. `create x_tv_dashboard_invoice` (header) — signer, signature, datetime, state=confirmed
 3. `create x_tv_dashboard_invoice_line_1992d` — 1 line ต่อ 1 SO
 4. `write sale.order` — รับบิลแล้ว=True + เวลา
-5. `message_post` บน transfer record — สรุปรอบ
-6. `message_post` บนแต่ละ SO — แนบลายเซ็น + ระบุเลขเอกสาร
+5. `message_post` บน transfer record
+6. `message_post` บนแต่ละ SO — แนบลายเซ็น + เลขเอกสาร
 
 #### Mobile success screen
-- แสดงเลขที่เอกสาร (`IT2026/0001`) หลัง confirm สำเร็จ
+- แสดงเลขที่เอกสาร (`IT2026/0001`) หลัง confirm
 
 ### Session 4 (2026-05-06 ต่อเนื่อง)
 
 #### Dispatch Transfer — Odoo Model Integration
 - สร้าง model `TV_dashboard_dispatch` (`x_tv_dashboard_dispatc`) ใน Odoo Studio
-- Fields: `x_name`, `x_route`, `x_plate`, `x_driver`, `x_depart_time` (Datetime), `x_state`, `x_so_ids` (Many2many → sale.order)
-- ตรวจสอบผ่าน XML-RPC API ว่าครบ
+- Fields: `x_name`, `x_route`, `x_plate`, `x_driver`, `x_depart_time`, `x_state`, `x_so_ids` (Many2many)
 
 #### dispatch_service.py — รีไรท์ใหม่
-Flow ใหม่เมื่อ confirm ขึ้นรถ:
+Flow เมื่อ confirm ขึ้นรถ:
 1. `write sale.order` — `ขึ้นรถจัดส่งแล้ว = True` (**ทำก่อน** เพื่อป้องกัน SO ค้าง)
-2. `_next_dispatch_doc_number()` → สร้างเลข DT2026/0001, 0002, ...
-3. `create x_tv_dashboard_dispatc` — route, plate, driver, datetime, state=confirmed, many2many SO
-4. สร้าง PDF ใบสรุปขึ้นรถ (fpdf2 + Sarabun font, Landscape A4)
+2. `_next_dispatch_doc_number()` → DT2026/0001, 0002, ...
+3. `create x_tv_dashboard_dispatc` — route, plate, driver, datetime, confirmed, many2many SO
+4. สร้าง PDF (fpdf2 + Sarabun, Landscape A4)
 5. `create ir.attachment` แนบ PDF เข้า dispatch record
-6. `message_post` บน dispatch record — แนบ PDF
-7. `message_post` บนแต่ละ SO — ระบุเลขเอกสาร
+6. `message_post` บน dispatch record + แต่ละ SO
 
 #### pdf_service.py (ใหม่)
-- ใช้ `fpdf2` + Sarabun font (Thai) — ไม่ต้องการ system dependency
-- Landscape A4, มี info box, ตาราง SO (# | SO | ลูกค้า | จังหวัด | ขนส่ง | บิล | ชิ้น | แพ็ค | หมายเหตุ)
-- summary row รวม SO/ชิ้น/แพ็ค
-- ช่องเซ็นชื่อ 2 ช่อง (คนขับ / ผู้รับของ)
-- Return bytes → base64 → แนบ chatter + ส่ง frontend download
+- `fpdf2` + Sarabun font — ไม่ต้องการ system dependency
+- Columns: # | SO | ลูกค้า | จังหวัด | ขนส่ง | บิล | ชิ้น | แพ็ค | หมายเหตุ
+- summary row + ช่องเซ็น 2 ช่อง (คนขับ / ผู้รับของ)
+- คืน bytes → base64 → แนบ chatter + frontend auto-download
 
-#### Frontend auto-download PDF
-- หลัง confirm สำเร็จ — รับ `pdf_b64` จาก API response
-- decode base64 → Blob → trigger download `.pdf` อัตโนมัติ
+#### Frontend tablet auto-download PDF
+- confirm success → decode base64 → Blob → trigger `.pdf` download อัตโนมัติ
+
+### Session 5 (2026-05-06 ต่อเนื่อง)
+
+#### Bug Fix: ยอด Pack ใน ⚠ Pick≠Pack ยังสูงเกินหลัง Return Pack
+
+**สาเหตุ:** SO S18240 มีการแพ็ค BPUL-IS1191 ซ้ำ 2 ครั้งใน FG/PACK/04460 (done=2.0) ทำให้ pack_qty = 9 แต่ pick_qty = 8 → แสดงใน ⚠ warning column  
+ผู้ใช้ทำ Return Pack (FG/PACK/04500) คืน 1 ชิ้น แต่โค้ดเดิมแค่ **ตัด return pack ออกทั้งก้อน** ไม่ได้หัก → pack_qty ยังเป็น 9 ≠ 8
+
+**แก้ไข** (`backend/services/sales_service.py` — `_get_problem_so_ids()`):
+- เปลี่ยน `pack_pick_ids` (forward only) → `pack_sign` (forward +1 / return −1)
+- เพิ่ม `origin_returned_move_id` เข้า moves query เพื่อ detect return picking แบบ reliable
+- ใช้ **double-detection**: origin text ("การส่งคืนของ" / "Return of") **OR** `origin_returned_move_id != False`
+- ผล: pack_qty = 9 − 1 = 8 = pick_qty → ไม่แสดงใน ⚠ warning ✅
+
+```python
+# ก่อนแก้
+pack_pick_ids = {p["id"] for p in pack_pickings if not _is_return(p)}
+...
+pack_qty[so_id] += qty  # ไม่หัก return
+
+# หลังแก้
+return_by_move = {m["picking_id"][0] for m in moves if m.get("origin_returned_move_id")}
+pack_sign = {p["id"]: -1 if (_is_return(p) or p["id"] in return_by_move) else 1
+             for p in pack_pickings}
+...
+pack_qty[so_id] += pack_sign[pid] * qty  # หัก return ออก
+```
+
+**Commit**: `b6f5d5c` — pushed to main, Render deployed
+
+#### สร้างสไลด์นำเสนอ (`presentation.html`)
+- HTML standalone 15 หน้า ไม่ต้องพึ่ง library ภายนอก
+- Navigation: keyboard arrows / Space / swipe บนมือถือ
+- Progress bar + slide counter
+- เนื้อหาครอบคลุม: ปัญหาก่อนมีระบบ → overview → ทุก feature → Odoo integration → tech stack → ข้อดี → deployment → roadmap
+- Dark theme เหมือน GitHub
 
 ---
 
@@ -191,13 +227,16 @@ Flow ใหม่เมื่อ confirm ขึ้นรถ:
 | Automation ไม่ fire ผ่าน XML-RPC | `write()` ไม่ trigger automation | เขียน field โดยตรงพร้อมกัน |
 | เวลาใน chatter เป็น UTC | Odoo เก็บ UTC | เขียน UTC ลง Odoo, แสดง Thai time ใน message body |
 | Form view ไม่แสดง field ใหม่ | Studio ไม่ auto-add field เข้า view | ต้อง drag field เข้า form view ใน Studio ด้วยตนเอง |
+| Return Pack ไม่หักยอด pack_qty | โค้ดเดิม exclude แทนที่จะ subtract | ใช้ `pack_sign` + `origin_returned_move_id` (แก้แล้ว Session 5) |
 
 ---
 
 ## TODO ที่ยังค้างอยู่
-- [ ] เพิ่ม fields ใน Odoo Studio form view ของ `x_tv_dashboard_invoice` เพื่อให้แสดงข้อมูล
+- [ ] เพิ่ม fields ใน Odoo Studio form view ของ `x_tv_dashboard_invoice`
 - [ ] เพิ่ม fields ใน Odoo Studio form view ของ `x_tv_dashboard_dispatc`
 - [ ] (optional) หน้า list/report สรุปรอบรับบิลแต่ละวัน
+- [ ] (optional) Push notification เมื่อมี SO พร้อมออกบิล
+- [ ] (optional) Export รายงานรายวัน / รายสัปดาห์
 
 ---
 
