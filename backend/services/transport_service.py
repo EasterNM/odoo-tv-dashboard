@@ -50,12 +50,12 @@ def get_transport_pickings() -> list:
         orders = odoo.search_read("sale.order", [("id", "in", sale_ids)], [
             "id",
             "x_studio_selection_field_92b_1jnor75f1",  # เส้นทางการจัดส่ง
-            "carrier_id",                               # วิธีการจัดส่ง
+            "delivery_method",                          # วิธีการจัดส่ง (verified field name)
         ], limit=len(sale_ids) + 10)
         for o in orders:
             so_map[o["id"]] = {
                 "route":   o.get("x_studio_selection_field_92b_1jnor75f1") or NO_ROUTE,
-                "carrier": o["carrier_id"][1] if o.get("carrier_id") else NO_CARRIER,
+                "carrier": o["delivery_method"][1] if o.get("delivery_method") else NO_CARRIER,
                 "qty":     0,
             }
 
