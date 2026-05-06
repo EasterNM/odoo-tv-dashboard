@@ -292,7 +292,7 @@
   <div id="success-screen">
     <div class="success-icon">✅</div>
     <div class="success-title">บันทึกสำเร็จ!</div>
-    <div class="success-sub">รับบิลเรียบร้อยแล้ว</div>
+    <div class="success-sub">รับบิลเรียบร้อยแล้ว<br><strong id="success-doc-no" style="color:#15803d;font-size:1.1rem;"></strong></div>
     <ul class="success-list" id="success-list"></ul>
   </div>
 
@@ -523,6 +523,9 @@
         const confirmed = allSOs.filter(so => checkedIds.has(so.id));
         document.getElementById('success-list').innerHTML =
           confirmed.map(so => `<li>✅ ${so.so} — ${so.customer}</li>`).join('');
+        if (json.doc_no) {
+          document.getElementById('success-doc-no').textContent = `เลขที่เอกสาร: ${json.doc_no}`;
+        }
         document.getElementById('success-screen').style.display = 'flex';
 
       } catch(e) {
