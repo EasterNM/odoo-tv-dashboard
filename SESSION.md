@@ -4,11 +4,12 @@
 
 ---
 
-## สถานะปัจจุบัน (2026-05-05)
+## สถานะปัจจุบัน (2026-05-06)
 
 ### URL ที่ใช้งานได้
 | หน้า | URL |
 |------|-----|
+| Home (หน้าหลัก) | https://odoo-tv-dashboard.onrender.com/ |
 | Sales TV | https://odoo-tv-dashboard.onrender.com/sales |
 | Store TV | https://odoo-tv-dashboard.onrender.com/store |
 | Transport TV | https://odoo-tv-dashboard.onrender.com/transport |
@@ -39,44 +40,60 @@ odoo-tv-dashboard/
 │       ├── sales_service.py          ← Sales TV
 │       ├── store_service.py          ← Store TV (5 columns)
 │       ├── transport_service.py      ← Transport TV
-│       ├── bill_receipt_service.py   ← Mobile รับบิล
+│       ├── bill_receipt_service.py   ← Mobile รับบิล + Invoice Transfer
 │       └── dispatch_service.py       ← Tablet ขึ้นรถ
 ├── frontend/
+│   ├── home/index.html               ← หน้าหลัก (ใหม่)
 │   ├── sales-tv/index.html
 │   ├── store-tv/index.html
 │   ├── transport-tv/index.html
 │   ├── mobile-receive-bill/index.html   ← PWA
 │   ├── tablet-dispatch/index.html       ← PWA
 │   └── shared/
-│       ├── tv.css
-│       ├── tv.js
+│       ├── tv.css / tv.js
 │       ├── qrcode.min.js
 │       ├── sw.js                     ← Service Worker (PWA)
-│       ├── manifest-receive-bill.json
-│       ├── manifest-dispatch.json
-│       ├── icon-receive-bill.svg
-│       └── icon-dispatch.svg
+│       ├── manifest-receive-bill.json / manifest-dispatch.json
+│       └── icon-receive-bill.svg / icon-dispatch.svg
 ├── Dockerfile                        ← ที่ root สำหรับ Render
-├── docker/Dockerfile                 ← ของเดิมสำหรับ Fly.io / local
 ├── docker-compose.yml
-├── render.yaml                       ← Render.com config
-└── fly.toml                          ← Fly.io config (เก็บไว้)
+├── render.yaml
+└── fly.toml                          ← เก็บไว้ (Fly.io เดิม)
 ```
 
 ---
 
 ## Odoo Field Reference
 
-| Field | Model | Label |
-|-------|-------|-------|
-| `x_studio_selection_field_92b_1jnor75f1` | `sale.order` | เส้นทางการจัดส่ง |
-| `x_studio_boolean_field_62d_1jnoq6a7n` | `sale.order` | ทำบิลจริงแล้ว |
-| `x_studio_boolean_field_5bd_1jnp0r53i` | `sale.order` | รับบิลแล้ว |
-| `x_studio_boolean_field_2dc_1jnrn22ck` | `sale.order` | ขึ้นรถจัดส่งแล้ว |
-| `x_studio_char_field_50v_1jnoq3ou3` | `sale.order` | เลขบิล easy-acc |
-| `x_studio_datetime_field_is_1jnrfclrr` | `sale.order` | เวลารับบิล |
-| `delivery_method` | `sale.order` | วิธีการจัดส่ง (many2one → delivery.carrier) |
-| `package_level_ids` | `stock.picking` | นับจำนวน package |
+### sale.order
+| Field | Type | Label |
+|-------|------|-------|
+| `x_studio_selection_field_92b_1jnor75f1` | selection | เส้นทางการจัดส่ง |
+| `x_studio_boolean_field_62d_1jnoq6a7n` | boolean | ทำบิลจริงแล้ว |
+| `x_studio_boolean_field_5bd_1jnp0r53i` | boolean | รับบิลแล้ว |
+| `x_studio_boolean_field_2dc_1jnrn22ck` | boolean | ขึ้นรถจัดส่งแล้ว |
+| `x_studio_char_field_50v_1jnoq3ou3` | char | เลขบิล easy-acc |
+| `x_studio_datetime_field_is_1jnrfclrr` | datetime | เวลารับบิล |
+| `delivery_method` | many2one → delivery.carrier | วิธีการจัดส่ง |
+| `package_level_ids` | one2many → stock.package.level | จำนวน package |
+
+### x_tv_dashboard_invoice (Invoice Transfer — Header)
+| Field | Type | Label |
+|-------|------|-------|
+| `x_name` | char | เลขที่เอกสาร (IT2026/0001) |
+| `x_transfer_datetime` | datetime | วันเวลาที่รับบิล (UTC) |
+| `x_signer_name` | char | ชื่อผู้รับบิล |
+| `x_signature` | binary | ลายเซ็น (PNG base64) |
+| `x_state` | selection | สถานะ: draft / confirmed |
+| `x_studio_notes` | html | หมายเหตุ |
+| `x_tv_dashboard_invoice_line_ids_90795` | one2many → line | รายการ SO |
+
+### x_tv_dashboard_invoice_line_1992d (Invoice Transfer — Line)
+| Field | Type | Label |
+|-------|------|-------|
+| `x_name` | char | ชื่อ SO |
+| `x_so_id` | many2one → sale.order | Sale Order |
+| `x_tv_dashboard_invoice_id` | many2one → header | เอกสาร header |
 
 ### Picking Type IDs
 | ID | ชื่อ | ใช้ใน |
@@ -90,40 +107,39 @@ odoo-tv-dashboard/
 
 ## สิ่งที่สร้าง/แก้ไขทั้งหมด
 
-### Session แรก
+### Session 1 (ก่อนหน้า)
 - **Store TV** — 3 column (PICK/PACK/DELIVERY) + column รวม SO + column ⚠ Pick≠Pack
-- **Transport TV** — จัดกลุ่มตาม route → carrier → SO cards + แก้ scroll bug (root cause: `overflow:hidden` บน `.carrier-group`)
-- **Fly.io deployment** — Singapore region, 2 machines, ไม่ spin down
+- **Transport TV** — จัดกลุ่มตาม route → carrier → SO cards + แก้ scroll bug
+- **Fly.io deployment** — Singapore region (trial หมดแล้ว)
 
-### Session นี้
+### Session 2 (ก่อนหน้า)
+- **Mobile รับบิล** (`/mobile/receive-bill`) — PWA: QR scan → ติ้ก SO → เซ็น → confirm
+- **Tablet ขึ้นรถ** (`/tablet/dispatch`) — PWA: เลือกเส้นทาง → ติ้ก SO → กรอกรถ/คนขับ → confirm
+- **Render.com deployment** — ย้ายจาก Fly.io พร้อม `/health` + UptimeRobot
 
-#### Mobile รับบิล (`/mobile/receive-bill`) — PWA
-- QR code บนหน้า Sales TV มุมขวาล่าง → สแกนเปิดหน้าบนมือถือ
-- แสดง SO ที่ทำบิลจริงแล้วแต่ยังไม่รับบิล
-- ติ้กเลือก SO + กรอกชื่อผู้รับ + เซ็นลายมือบน canvas
-- ยืนยัน → เขียน `รับบิลแล้ว = True` + เวลา (UTC) ใน Odoo + แนบ signature image ใน chatter
-- แสดงเลข easy-acc ชัดเจน
-- **Bug ที่แก้**: `attachment_ids` ใน Odoo 18 ต้องเป็น `[id]` ไม่ใช่ `[(4,id)]`, ใช้ `<p><strong>` ไม่ใช่ `<b><br>`, เวลาแสดงเป็น UTC+7
+### Session 3 (วันนี้ 2026-05-06)
 
-#### Tablet ขึ้นรถ (`/tablet/dispatch`) — PWA
-- หน้าแรก: ปุ่มเส้นทางใหญ่ สีตาม route พร้อม emoji + จำนวน SO รอขึ้นรถ
-- กดปุ่มเส้นทาง → ตาราง SO: S.O. / ลูกค้า / จังหวัด / ขนส่ง / บิลจริง✓ / แพ็ค / ชิ้น / หมายเหตุ
-- SO จัดกลุ่มตามขนส่ง มีเส้นคั่นสีทอง
-- checkbox ต่อแถว + เลือกทั้งหมด
-- กดยืนยันขึ้นรถ → modal กรอก ทะเบียนรถ / คนขับ / เวลา → post chatter ทุก SO
-- เขียน `ขึ้นรถจัดส่งแล้ว = True` → SO หายออกจากรายการทันที
-- **Bug ที่แก้**: `JSON.stringify` ใน HTML attribute ชนกับ double quote → ใช้ `data-*` แทน, checkbox double-fire → `stopPropagation`, `carrier_id` ว่างทุกใบ → ใช้ `delivery_method` แทน
+#### หน้าหลัก (`/`)
+- สร้าง `frontend/home/index.html` — grid ปุ่มใหญ่ 5 ปุ่ม สีต่างกันแต่ละหน้า + นาฬิกา
+- เพิ่ม route `GET /` ใน `api.py`
 
-#### PWA (ทั้งสองหน้า)
-- `manifest.json` แยกแต่ละหน้า (theme-color, icon, orientation: any)
-- Service Worker cache HTML+CSS, network-only สำหรับ API
-- SVG icon สำหรับ Android/iOS
-- Apple meta tags สำหรับ iOS Safari "Add to Home Screen"
+#### Invoice Transfer — Odoo Model Integration
+- ออกแบบ data model สำหรับ `x_tv_dashboard_invoice` (header + line)
+- ตรวจสอบ fields ผ่าน Odoo XML-RPC API
+- แนะนำ fields ที่ต้องสร้าง 5 fields
+- verify fields หลังสร้างว่าครบและถูกต้อง
 
-#### Render.com deployment
-- ย้ายจาก Fly.io (trial หมด) มา Render.com
-- `render.yaml` + `Dockerfile` ที่ root
-- `/health` endpoint สำหรับ UptimeRobot ping ป้องกัน sleep
+#### bill_receipt_service.py — รีไรท์ใหม่
+Flow ใหม่เมื่อ confirm รับบิล:
+1. `_next_doc_number()` → สร้างเลข IT2026/0001, 0002, ...
+2. `create x_tv_dashboard_invoice` (header) — signer, signature, datetime, state=confirmed
+3. `create x_tv_dashboard_invoice_line_1992d` — 1 line ต่อ 1 SO
+4. `write sale.order` — รับบิลแล้ว=True + เวลา
+5. `message_post` บน transfer record — สรุปรอบ
+6. `message_post` บนแต่ละ SO — แนบลายเซ็น + ระบุเลขเอกสาร
+
+#### Mobile success screen
+- แสดงเลขที่เอกสาร (`IT2026/0001`) หลัง confirm สำเร็จ
 
 ---
 
@@ -131,10 +147,17 @@ odoo-tv-dashboard/
 
 | ปัญหา | สาเหตุ | วิธีแก้ |
 |-------|--------|---------|
-| `attachment_ids` ไม่ทำงาน | Odoo 18 เปลี่ยน API — ไม่รับ ORM command tuple | ใช้ `[att_id]` (list of IDs) |
+| `attachment_ids` ไม่ทำงาน | Odoo 18 ไม่รับ ORM command tuple | ใช้ `[att_id]` (list of IDs) |
 | HTML tag โผล่เป็น text ใน chatter | Odoo 18 sanitize เข้มขึ้น | ใช้ `<p><strong><ul><li>` เท่านั้น |
-| Automation ไม่ fire ผ่าน XML-RPC | Odoo automation ไม่ trigger จาก `write()` | เขียน datetime field โดยตรงพร้อม write |
-| เวลาใน chatter เป็น UTC | Odoo เก็บ UTC แต่ display ตาม timezone user | เขียน UTC ลง Odoo, แสดง Thai time ใน message body |
+| Automation ไม่ fire ผ่าน XML-RPC | `write()` ไม่ trigger automation | เขียน field โดยตรงพร้อมกัน |
+| เวลาใน chatter เป็น UTC | Odoo เก็บ UTC | เขียน UTC ลง Odoo, แสดง Thai time ใน message body |
+| Form view ไม่แสดง field ใหม่ | Studio ไม่ auto-add field เข้า view | ต้อง drag field เข้า form view ใน Studio ด้วยตนเอง |
+
+---
+
+## TODO ที่ยังค้างอยู่
+- [ ] เพิ่ม fields ใน Odoo Studio form view ของ `x_tv_dashboard_invoice` เพื่อให้แสดงข้อมูล
+- [ ] (optional) หน้า list/report สรุปรอบรับบิลแต่ละวัน
 
 ---
 
