@@ -4,6 +4,7 @@ Dispatch Service — Tablet Loading Page
 """
 from datetime import datetime, timezone, timedelta
 from services.odoo_client import odoo
+from services.pdf_service import build_dispatch_pdf, pdf_to_base64
 
 FIELD_ROUTE      = "x_studio_selection_field_92b_1jnor75f1"
 FIELD_RECEIVED   = "x_studio_boolean_field_5bd_1jnp0r53i"
@@ -177,33 +178,93 @@ def confirm_dispatch(route: str, so_ids: list, plate: str, driver: str,
     if not so_ids:
         return {"ok": False, "error": "ไม่มี SO ที่เลือก"}
 
-    now_thai  = datetime.now(timezone.utc).astimezone(THAI_TZ)
-    date_str  = now_thai.strftime("%d/%m/%Y")
+    now_thai   = datetime.now(timezone.utc).astimezone(THAI_TZ)
+    date_str   = now_thai.strftime("%d/%m/%Y")
     depart_utc = _parse_depart_time(depart_time, now_thai)
 
     orders = odoo.search_read("sale.order", [("id", "in", so_ids)],
-        ["id", "name"], limit=len(so_ids) + 5)
-    order_map = {o["id"]: o["name"] for o in orders}
-    so_names  = ", ".join(order_map.get(i, f"ID:{i}") for i in so_ids)
+        ["id", "name", "partner_id", "delivery_method",
+         FIELD_RECEIVED, "x_studio_selection_field_92b_1jnor75f1"],
+        limit=len(so_ids) + 5)
+    order_map  = {o["id"]: o for o in orders}
+    so_names   = ", ".join(order_map[i]["name"] for i in so_ids if i in order_map)
 
-    # 1. สร้าง dispatch record
-    doc_no = _next_dispatch_doc_number(now_thai.year)
-    dispatch_id = odoo.create(DISPATCH_MODEL, {
-        "x_name":          doc_no,
-        "x_route":         route,
-        "x_plate":         plate,
-        "x_driver":        driver,
-        "x_depart_time":   depart_utc,
-        "x_state":         "confirmed",
-        "x_so_ids":        [[6, 0, so_ids]],
-    })
-
-    # 2. Mark ขึ้นรถแล้ว บน sale.order
+    # ── 1. Mark ขึ้นรถแล้ว บน sale.order ────────────────────────────────
     odoo.write("sale.order", so_ids, {FIELD_DISPATCHED: True})
 
-    # 3. Post chatter บน dispatch record
+    # ── 2. สร้าง dispatch record ─────────────────────────────────────────
+    doc_no      = _next_dispatch_doc_number(now_thai.year)
+    dispatch_id = odoo.create(DISPATCH_MODEL, {
+        "x_name":        doc_no,
+        "x_route":       route,
+        "x_plate":       plate,
+        "x_driver":      driver,
+        "x_depart_time": depart_utc,
+        "x_state":       "confirmed",
+        "x_so_ids":      [[6, 0, so_ids]],
+    })
+
+    # ── 3. สร้าง PDF ──────────────────────────────────────────────────────
+    # ดึง packages/qty จาก get_route_sos (มีแล้วใน soData ฝั่ง frontend)
+    # แต่ที่นี่ต้องดึง packages จาก pickings
+    pickings = odoo.search_read("stock.picking", [
+        ("sale_id", "in", so_ids),
+        ("picking_type_id", "=", 2),
+        ("state", "not in", ["cancel"]),
+    ], ["sale_id", "package_level_ids"], limit=500)
+    pkg_map: dict[int, int] = {}
+    for p in pickings:
+        sid = p["sale_id"][0] if p.get("sale_id") else None
+        if sid:
+            pkg_map[sid] = pkg_map.get(sid, 0) + len(p.get("package_level_ids") or [])
+
+    lines = odoo.search_read("sale.order.line",
+        [("order_id", "in", so_ids)], ["order_id", "product_uom_qty"], limit=5000)
+    qty_map: dict[int, int] = {}
+    for l in lines:
+        oid = l["order_id"][0]
+        qty_map[oid] = qty_map.get(oid, 0) + int(l["product_uom_qty"])
+
+    partner_ids = [o["partner_id"][0] for o in orders if o.get("partner_id")]
+    partners    = odoo.search_read("res.partner", [("id", "in", partner_ids)],
+                      ["id", "state_id"], limit=len(partner_ids) + 5)
+    prov_map    = {
+        p["id"]: p["state_id"][1].replace(" (TH)", "") if p.get("state_id") else "-"
+        for p in partners
+    }
+
+    sos_for_pdf = []
+    for so_id in so_ids:
+        o   = order_map.get(so_id, {})
+        pid = o.get("partner_id", [None])[0] if o.get("partner_id") else None
+        sos_for_pdf.append({
+            "so_id":    so_id,
+            "so":       o.get("name", f"ID:{so_id}"),
+            "customer": o["partner_id"][1] if o.get("partner_id") else "-",
+            "province": prov_map.get(pid, "-"),
+            "carrier":  o["delivery_method"][1] if o.get("delivery_method") else "-",
+            "received": bool(o.get(FIELD_RECEIVED)),
+            "packages": pkg_map.get(so_id, 0),
+            "qty":      qty_map.get(so_id, 0),
+        })
+
+    pdf_bytes  = build_dispatch_pdf(doc_no, route, plate, driver,
+                                    depart_time, date_str, sos_for_pdf, notes)
+    pdf_b64    = pdf_to_base64(pdf_bytes)
+    pdf_name   = f"ขึ้นรถ_{doc_no}_{route}.pdf"
+
+    # ── 4. แนบ PDF เข้า chatter ของ dispatch record ──────────────────────
+    att_id = odoo.create("ir.attachment", {
+        "name":      pdf_name,
+        "res_model": DISPATCH_MODEL,
+        "res_id":    dispatch_id,
+        "type":      "binary",
+        "datas":     pdf_b64,
+        "mimetype":  "application/pdf",
+    })
+
     so_list_html = "".join(
-        f"<li>{order_map.get(i, f'ID:{i}')}</li>" for i in so_ids
+        f"<li>{order_map[i]['name']}</li>" for i in so_ids if i in order_map
     )
     odoo.execute_method(DISPATCH_MODEL, "message_post", [dispatch_id], {
         "body": (
@@ -214,11 +275,12 @@ def confirm_dispatch(route: str, so_ids: list, plate: str, driver: str,
             f"<p>รายการ SO:</p><ul>{so_list_html}</ul>"
         ),
         "message_type": "comment",
+        "attachment_ids": [att_id],
     })
 
-    # 4. Post chatter บนแต่ละ SO
+    # ── 5. Post chatter บนแต่ละ SO ───────────────────────────────────────
     for so_id in so_ids:
-        note     = (notes.get(str(so_id)) or "").strip()
+        note      = (notes.get(str(so_id)) or "").strip()
         note_html = f"<p>หมายเหตุ: {note}</p>" if note else ""
         odoo.execute_method("sale.order", "message_post", [so_id], {
             "body": (
@@ -237,4 +299,6 @@ def confirm_dispatch(route: str, so_ids: list, plate: str, driver: str,
         "confirmed": len(so_ids),
         "route":     route,
         "doc_no":    doc_no,
+        "pdf_b64":   pdf_b64,
+        "pdf_name":  pdf_name,
     }
