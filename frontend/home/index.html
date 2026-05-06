@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Odoo TV Dashboard</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 2rem 2rem 1.5rem;
+      text-align: center;
+      background: var(--surface);
+      border-bottom: 2px solid #30363d;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: 0.02em;
+    }
+
+    header p {
+      margin-top: 0.4rem;
+      color: var(--muted);
+      font-size: 1rem;
+    }
+
+    #clock {
+      margin-top: 0.5rem;
+      font-size: 1.4rem;
+      font-weight: bold;
+      font-variant-numeric: tabular-nums;
+      color: var(--muted);
+    }
+
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+      padding: 2rem;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+      align-content: start;
+    }
+
+    a.card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.8rem;
+      padding: 2.5rem 1.5rem;
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: 16px;
+      text-decoration: none;
+      color: var(--text);
+      transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+      cursor: pointer;
+      min-height: 200px;
+    }
+
+    a.card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+
+    a.card:active {
+      transform: translateY(-1px);
+    }
+
+    /* สีต่างกันแต่ละ card */
+    a.card.sales  { border-color: #1f6feb; }
+    a.card.sales:hover  { border-color: #58a6ff; box-shadow: 0 8px 32px rgba(31,111,235,0.3); }
+
+    a.card.store  { border-color: #238636; }
+    a.card.store:hover  { border-color: #3fb950; box-shadow: 0 8px 32px rgba(35,134,54,0.3); }
+
+    a.card.transport { border-color: #8957e5; }
+    a.card.transport:hover { border-color: #a371f7; box-shadow: 0 8px 32px rgba(137,87,229,0.3); }
+
+    a.card.mobile { border-color: #d29922; }
+    a.card.mobile:hover { border-color: #f0b72f; box-shadow: 0 8px 32px rgba(210,153,34,0.3); }
+
+    a.card.tablet { border-color: #0d8f6f; }
+    a.card.tablet:hover { border-color: #1abc9c; box-shadow: 0 8px 32px rgba(13,143,111,0.3); }
+
+    .card-icon {
+      font-size: 3.5rem;
+      line-height: 1;
+    }
+
+    .card-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .card-desc {
+      font-size: 0.9rem;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.4;
+    }
+
+    .card-badge {
+      font-size: 0.75rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .badge-tv   { background: rgba(31,111,235,0.2);  color: #58a6ff; }
+    .badge-pwa  { background: rgba(210,153,34,0.2);  color: #f0b72f; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📺 Odoo TV Dashboard</h1>
+    <p>เลือกหน้าที่ต้องการ</p>
+    <div id="clock"></div>
+  </header>
+
+  <main>
+    <a class="card sales" href="/sales">
+      <div class="card-icon">💰</div>
+      <div class="card-title">Sales TV</div>
+      <div class="card-desc">รายการ SO ที่พร้อมทำบิล<br>แสดงบน TV หน้าร้าน</div>
+      <span class="card-badge badge-tv">TV</span>
+    </a>
+
+    <a class="card store" href="/store">
+      <div class="card-icon">📦</div>
+      <div class="card-title">Store TV</div>
+      <div class="card-desc">สถานะการหยิบสินค้า<br>PICK / PACK / DELIVERY</div>
+      <span class="card-badge badge-tv">TV</span>
+    </a>
+
+    <a class="card transport" href="/transport">
+      <div class="card-icon">🚚</div>
+      <div class="card-title">Transport TV</div>
+      <div class="card-desc">จัดกลุ่มตามเส้นทางจัดส่ง<br>แสดงสถานะรถแต่ละสาย</div>
+      <span class="card-badge badge-tv">TV</span>
+    </a>
+
+    <a class="card mobile" href="/mobile/receive-bill">
+      <div class="card-icon">📝</div>
+      <div class="card-title">รับบิล</div>
+      <div class="card-desc">ติ้กรับบิลและเซ็นชื่อ<br>สำหรับมือถือ</div>
+      <span class="card-badge badge-pwa">PWA</span>
+    </a>
+
+    <a class="card tablet" href="/tablet/dispatch">
+      <div class="card-icon">🚛</div>
+      <div class="card-title">ขึ้นรถจัดส่ง</div>
+      <div class="card-desc">เลือก SO ขึ้นรถตามเส้นทาง<br>สำหรับแท็บเล็ต</div>
+      <span class="card-badge badge-pwa">PWA</span>
+    </a>
+  </main>
+
+  <script>
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('clock').textContent = now.toLocaleTimeString('th-TH', {
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+      });
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
+  </script>
+</body>
+</html>

@@ -13,6 +13,11 @@ FRONTEND_DIR = Path(__file__).parent.parent.parent / "frontend"
 SHARED_DIR   = FRONTEND_DIR / "shared"
 
 
+@router.get("/", response_class=HTMLResponse)
+def home():
+    return (FRONTEND_DIR / "home" / "index.html").read_text()
+
+
 @router.get("/sw.js")
 def service_worker():
     return FileResponse(SHARED_DIR / "sw.js", media_type="application/javascript")
