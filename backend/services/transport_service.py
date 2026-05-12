@@ -3,8 +3,7 @@ Transport TV Service
 Group delivery SO ตาม เส้นทางการจัดส่ง → วิธีการจัดส่ง (carrier)
 """
 from services.odoo_client import odoo
-
-DATE_FROM = "2026-05-01 00:00:00"
+from services.app_config import get_config
 
 PICKING_FIELDS = [
     "name", "origin", "partner_id", "state", "sale_id",
@@ -20,7 +19,6 @@ STATE_LABEL = {
     "cancel":    "ยกเลิก",
 }
 
-ROUTE_ORDER = ["กรุงเทพ", "สายใน", "สายนอก", "รับหน้าบริษัท", "เซลล์ส่งเอง"]
 NO_ROUTE    = "ยังไม่ระบุเส้นทาง"
 NO_CARRIER  = "ยังไม่ระบุวิธีส่ง"
 
@@ -30,6 +28,10 @@ def get_transport_pickings() -> list:
     ดึง delivery picking ที่ยังไม่เสร็จ จัดกลุ่มตาม:
       เส้นทางการจัดส่ง → วิธีการจัดส่ง → รายการ SO
     """
+    cfg = get_config()
+    DATE_FROM = cfg["date_from"] + " 00:00:00"
+    ROUTE_ORDER = [r["name"] for r in cfg.get("routes", [])]
+
     # 1. ดึง delivery picking คลังหลัก
     pickings = odoo.search_read("stock.picking", [
         ("state", "not in", ["cancel", "done"]),

@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — TV Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0d1117;
+      --surface:  #161b22;
+      --border:   #30363d;
+      --text:     #e6edf3;
+      --muted:    #8b949e;
+      --accent:   #1f6feb;
+      --success:  #238636;
+      --danger:   #da3633;
+      --radius:   8px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-size: 15px;
+      min-height: 100vh;
+    }
+
+    /* ── Login ── */
+    #login-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      gap: 16px;
+    }
+
+    #login-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 40px 36px;
+      width: 340px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    #login-box h1 {
+      font-size: 20px;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    #login-error {
+      color: var(--danger);
+      font-size: 13px;
+      text-align: center;
+      min-height: 18px;
+    }
+
+    /* ── Config screen ── */
+    #config-screen { display: none; }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    header h1 { font-size: 18px; font-weight: 600; }
+
+    main {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 32px 20px 60px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+    }
+
+    .card h2 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .field-row label {
+      width: 240px;
+      flex-shrink: 0;
+      font-size: 14px;
+    }
+
+    .field-row small {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 4px;
+    }
+
+    /* ── Inputs ── */
+    input[type="text"],
+    input[type="password"],
+    input[type="date"],
+    input[type="number"] {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 14px;
+      padding: 7px 11px;
+      outline: none;
+      transition: border-color .15s;
+    }
+
+    input[type="text"]:focus,
+    input[type="password"]:focus,
+    input[type="date"]:focus,
+    input[type="number"]:focus { border-color: var(--accent); }
+
+    input[type="date"] { width: 160px; }
+    input[type="number"] { width: 80px; text-align: center; }
+    input[type="color"] {
+      width: 36px; height: 32px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px;
+      background: var(--bg);
+      cursor: pointer;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity .15s;
+    }
+    .btn:hover { opacity: .85; }
+    .btn:active { opacity: .7; }
+
+    .btn-primary  { background: var(--accent);  color: #fff; border-color: var(--accent); }
+    .btn-success  { background: var(--success); color: #fff; border-color: var(--success); }
+    .btn-danger   { background: transparent;    color: var(--danger); border-color: var(--danger); }
+    .btn-ghost    { background: transparent;    color: var(--text);   border-color: var(--border); }
+    .btn-sm       { padding: 4px 10px; font-size: 13px; }
+    .btn-logout   { background: transparent; color: var(--muted); border-color: var(--border); padding: 6px 14px; }
+
+    /* ── Routes list ── */
+    #routes-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .route-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+    }
+
+    .route-row .drag-handle {
+      color: var(--muted);
+      cursor: grab;
+      font-size: 16px;
+      user-select: none;
+      flex-shrink: 0;
+    }
+
+    .route-row input[type="text"] { flex: 1; min-width: 0; }
+    .route-row .icon-input        { width: 56px; text-align: center; font-size: 18px; }
+
+    .route-row .move-btns {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .move-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 11px;
+      line-height: 1;
+      padding: 2px 5px;
+      transition: color .15s;
+    }
+    .move-btn:hover { color: var(--text); }
+
+    /* ── Save bar ── */
+    #save-bar {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 16px;
+    }
+
+    #save-status {
+      font-size: 13px;
+      color: var(--success);
+    }
+
+    #save-status.error { color: var(--danger); }
+  </style>
+</head>
+<body>
+
+<!-- ── Login ── -->
+<div id="login-screen">
+  <div id="login-box">
+    <h1>⚙ TV Dashboard Admin</h1>
+    <input type="password" id="pw-input" placeholder="รหัสผ่าน" onkeydown="if(event.key==='Enter')login()">
+    <button class="btn btn-primary" onclick="login()">เข้าสู่ระบบ</button>
+    <div id="login-error"></div>
+  </div>
+</div>
+
+<!-- ── Config ── -->
+<div id="config-screen">
+  <header>
+    <h1>⚙ ตั้งค่าระบบ — TV Dashboard</h1>
+    <button class="btn btn-logout" onclick="logout()">ออกจากระบบ</button>
+  </header>
+
+  <main>
+    <!-- Date From -->
+    <div class="card">
+      <h2>ช่วงเวลาข้อมูล</h2>
+      <div class="field-row">
+        <label>
+          วันที่เริ่มต้น (DATE_FROM)
+          <small>TV ทุกหน้าจะดึงข้อมูลตั้งแต่วันนี้ เปลี่ยนต้นเดือนใหม่ทุกครั้ง</small>
+        </label>
+        <input type="date" id="date-from">
+      </div>
+    </div>
+
+    <!-- Sales TV -->
+    <div class="card">
+      <h2>Sales TV</h2>
+      <div class="field-row">
+        <label>
+          ซ่อน SO ที่ทำบิลแล้วหลัง
+          <small>SO ที่ mark "ทำบิลจริงแล้ว" จะหายออกจาก TV หลังจากเวลานี้</small>
+        </label>
+        <input type="number" id="billed-hours" min="1" max="168" value="24">
+        <span style="color:var(--muted);font-size:14px">ชั่วโมง</span>
+      </div>
+    </div>
+
+    <!-- Routes -->
+    <div class="card">
+      <h2>เส้นทางจัดส่ง</h2>
+      <div id="routes-list"></div>
+      <div style="margin-top:14px">
+        <button class="btn btn-ghost" onclick="addRoute()">+ เพิ่มเส้นทาง</button>
+      </div>
+    </div>
+  </main>
+
+  <div id="save-bar">
+    <span id="save-status"></span>
+    <button class="btn btn-success" onclick="saveConfig()">💾 บันทึกการตั้งค่า</button>
+  </div>
+</div>
+
+<script>
+  const TOKEN_KEY = 'admin_token';
+  let token = sessionStorage.getItem(TOKEN_KEY) || '';
+
+  // ── Auth ──────────────────────────────────────────────────────────────────
+
+  async function login() {
+    const pw = document.getElementById('pw-input').value;
+    const err = document.getElementById('login-error');
+    err.textContent = '';
+    try {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pw }),
+      });
+      if (!res.ok) { err.textContent = 'รหัสผ่านไม่ถูกต้อง'; return; }
+      const data = await res.json();
+      token = data.token;
+      sessionStorage.setItem(TOKEN_KEY, token);
+      showConfig();
+    } catch {
+      err.textContent = 'เชื่อมต่อ server ไม่ได้';
+    }
+  }
+
+  function logout() {
+    sessionStorage.removeItem(TOKEN_KEY);
+    token = '';
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('config-screen').style.display = 'none';
+    document.getElementById('pw-input').value = '';
+  }
+
+  // ── Load config ───────────────────────────────────────────────────────────
+
+  async function showConfig() {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('config-screen').style.display = 'block';
+    await loadConfig();
+  }
+
+  async function loadConfig() {
+    try {
+      const res = await fetch('/api/admin/config', {
+        headers: { 'X-Admin-Token': token },
+      });
+      if (res.status === 401) { logout(); return; }
+      const cfg = await res.json();
+      document.getElementById('date-from').value = cfg.date_from || '';
+      document.getElementById('billed-hours').value = cfg.billed_hide_hours ?? 24;
+      renderRoutes(cfg.routes || []);
+    } catch {
+      setStatus('โหลด config ไม่ได้', true);
+    }
+  }
+
+  // ── Routes ────────────────────────────────────────────────────────────────
+
+  function renderRoutes(routes) {
+    const list = document.getElementById('routes-list');
+    list.innerHTML = '';
+    routes.forEach((r, i) => list.appendChild(makeRouteRow(r, i, routes.length)));
+  }
+
+  function makeRouteRow(r, idx, total) {
+    const row = document.createElement('div');
+    row.className = 'route-row';
+    row.dataset.idx = idx;
+
+    row.innerHTML = `
+      <span class="drag-handle" title="ลาก">⠿</span>
+      <input type="text" class="r-name" placeholder="ชื่อเส้นทาง" value="${escHtml(r.name)}">
+      <input type="color" class="r-color" value="${r.color || '#555555'}" title="สี">
+      <input type="text" class="r-icon icon-input" placeholder="🏙️" value="${escHtml(r.icon || '')}">
+      <div class="move-btns">
+        <button class="move-btn" onclick="moveRoute(${idx},-1)" ${idx===0?'disabled':''}>▲</button>
+        <button class="move-btn" onclick="moveRoute(${idx}, 1)" ${idx===total-1?'disabled':''}>▼</button>
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="removeRoute(${idx})">ลบ</button>
+    `;
+    return row;
+  }
+
+  function getRoutes() {
+    return [...document.querySelectorAll('.route-row')].map(row => ({
+      name:  row.querySelector('.r-name').value.trim(),
+      color: row.querySelector('.r-color').value,
+      icon:  row.querySelector('.r-icon').value.trim(),
+    }));
+  }
+
+  function addRoute() {
+    const routes = getRoutes();
+    routes.push({ name: '', color: '#555555', icon: '📦' });
+    renderRoutes(routes);
+  }
+
+  function removeRoute(idx) {
+    const routes = getRoutes();
+    routes.splice(idx, 1);
+    renderRoutes(routes);
+  }
+
+  function moveRoute(idx, dir) {
+    const routes = getRoutes();
+    const target = idx + dir;
+    if (target < 0 || target >= routes.length) return;
+    [routes[idx], routes[target]] = [routes[target], routes[idx]];
+    renderRoutes(routes);
+  }
+
+  // ── Save ──────────────────────────────────────────────────────────────────
+
+  async function saveConfig() {
+    setStatus('');
+    const routes = getRoutes().filter(r => r.name);
+    if (!routes.length) { setStatus('ต้องมีเส้นทางอย่างน้อย 1 เส้นทาง', true); return; }
+
+    const body = {
+      date_from:         document.getElementById('date-from').value,
+      billed_hide_hours: parseInt(document.getElementById('billed-hours').value) || 24,
+      routes,
+    };
+
+    if (!body.date_from) { setStatus('กรุณาเลือกวันที่เริ่มต้น', true); return; }
+
+    try {
+      const res = await fetch('/api/admin/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Token': token },
+        body: JSON.stringify(body),
+      });
+      if (res.status === 401) { logout(); return; }
+      if (!res.ok) { setStatus('บันทึกไม่สำเร็จ', true); return; }
+      setStatus('✓ บันทึกเรียบร้อย');
+      setTimeout(() => setStatus(''), 3000);
+    } catch {
+      setStatus('เชื่อมต่อ server ไม่ได้', true);
+    }
+  }
+
+  function setStatus(msg, isError = false) {
+    const el = document.getElementById('save-status');
+    el.textContent = msg;
+    el.className = isError ? 'error' : '';
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+
+  if (token) {
+    showConfig();
+  }
+</script>
+</body>
+</html>

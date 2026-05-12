@@ -1,4 +1,6 @@
-from fastapi import APIRouter, HTTPException
+import hashlib
+import os
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, FileResponse
 from pydantic import BaseModel
 from pathlib import Path
@@ -7,10 +9,27 @@ from services.store_service import get_store_pickings
 from services.transport_service import get_transport_pickings
 from services.bill_receipt_service import get_pending_receipts, confirm_receipt
 from services.dispatch_service import get_dispatch_routes, get_route_sos, confirm_dispatch
+from services.app_config import get_config, save_config
 
 router = APIRouter()
 FRONTEND_DIR = Path(__file__).parent.parent.parent / "frontend"
 SHARED_DIR   = FRONTEND_DIR / "shared"
+
+_ADMIN_TOKEN: str | None = None
+
+
+def _get_admin_token() -> str:
+    global _ADMIN_TOKEN
+    if _ADMIN_TOKEN is None:
+        pw = os.getenv("ADMIN_PASSWORD", "admin")
+        _ADMIN_TOKEN = hashlib.sha256(pw.encode()).hexdigest()
+    return _ADMIN_TOKEN
+
+
+def _require_admin(request: Request) -> None:
+    token = request.headers.get("X-Admin-Token", "")
+    if token != _get_admin_token():
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -147,3 +166,51 @@ def api_dispatch_confirm(body: ConfirmDispatchRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Admin ─────────────────────────────────────────────────────────────────────
+
+class AdminLoginRequest(BaseModel):
+    password: str
+
+
+class RouteItem(BaseModel):
+    name:  str
+    color: str
+    icon:  str
+
+
+class AdminConfigRequest(BaseModel):
+    date_from:         str
+    billed_hide_hours: int
+    routes:            list[RouteItem]
+
+
+@router.get("/admin", response_class=HTMLResponse)
+def admin_page():
+    return (FRONTEND_DIR / "admin" / "index.html").read_text(encoding="utf-8")
+
+
+@router.post("/api/admin/login")
+def admin_login(body: AdminLoginRequest):
+    token = hashlib.sha256(body.password.encode()).hexdigest()
+    if token == _get_admin_token():
+        return {"ok": True, "token": token}
+    raise HTTPException(status_code=401, detail="รหัสผ่านไม่ถูกต้อง")
+
+
+@router.get("/api/admin/config")
+def admin_get_config(request: Request):
+    _require_admin(request)
+    return get_config()
+
+
+@router.post("/api/admin/config")
+def admin_save_config(request: Request, body: AdminConfigRequest):
+    _require_admin(request)
+    data = {
+        "date_from":         body.date_from,
+        "billed_hide_hours": body.billed_hide_hours,
+        "routes":            [r.model_dump() for r in body.routes],
+    }
+    return save_config(data)

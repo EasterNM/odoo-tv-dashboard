@@ -5,31 +5,23 @@ Dispatch Service — Tablet Loading Page
 from datetime import datetime, timezone, timedelta
 from services.odoo_client import odoo
 from services.pdf_service import build_dispatch_pdf, pdf_to_base64
+from services.app_config import get_config
 
 FIELD_ROUTE      = "x_studio_selection_field_92b_1jnor75f1"
 FIELD_RECEIVED   = "x_studio_boolean_field_5bd_1jnp0r53i"
 FIELD_DISPATCHED = "x_studio_boolean_field_2dc_1jnrn22ck"
-DATE_FROM        = "2026-05-01 00:00:00"
 THAI_TZ          = timezone(timedelta(hours=7))
-
 DISPATCH_MODEL   = "x_tv_dashboard_dispatc"
+NO_ROUTE         = "ยังไม่ระบุเส้นทาง"
 
-ROUTE_ORDER = ["กรุงเทพ", "สายใน", "สายนอก", "รับหน้าบริษัท", "เซลล์ส่งเอง"]
-ROUTE_COLOR = {
-    "กรุงเทพ":       "#1f6feb",
-    "สายใน":         "#238636",
-    "สายนอก":        "#b45309",
-    "รับหน้าบริษัท": "#7c3aed",
-    "เซลล์ส่งเอง":   "#dc2626",
-}
-ROUTE_ICON = {
-    "กรุงเทพ":       "🏙️",
-    "สายใน":         "🛣️",
-    "สายนอก":        "🚛",
-    "รับหน้าบริษัท": "🏢",
-    "เซลล์ส่งเอง":   "🧑‍💼",
-}
-NO_ROUTE = "ยังไม่ระบุเส้นทาง"
+
+def _routes_cfg() -> tuple[list[str], dict[str, str], dict[str, str]]:
+    """คืน (route_order, route_color, route_icon) จาก config"""
+    routes = get_config().get("routes", [])
+    order = [r["name"] for r in routes]
+    color = {r["name"]: r["color"] for r in routes}
+    icon  = {r["name"]: r.get("icon", "📦") for r in routes}
+    return order, color, icon
 
 
 def _next_dispatch_doc_number(year: int) -> str:
@@ -55,10 +47,11 @@ def _parse_depart_time(depart_time: str, thai_now: datetime) -> str:
 
 
 def _get_pickings() -> list:
+    date_from = get_config()["date_from"] + " 00:00:00"
     return odoo.search_read("stock.picking", [
         ("state", "not in", ["cancel", "done"]),
         ("picking_type_id", "=", 2),
-        ("create_date", ">=", DATE_FROM),
+        ("create_date", ">=", date_from),
         ("origin", "!=", False),
     ], ["name", "origin", "partner_id", "sale_id", "package_level_ids"], limit=500)
 
@@ -67,6 +60,8 @@ def get_dispatch_routes() -> list:
     pickings = _get_pickings()
     if not pickings:
         return []
+
+    route_order, route_color, route_icon = _routes_cfg()
 
     sale_ids = list({p["sale_id"][0] for p in pickings if p.get("sale_id")})
     orders = odoo.search_read("sale.order",
@@ -80,13 +75,13 @@ def get_dispatch_routes() -> list:
 
     result = []
     seen = set()
-    for route in ROUTE_ORDER:
+    for route in route_order:
         if route in route_sos:
             result.append({
                 "route":    route,
                 "so_count": len(route_sos[route]),
-                "color":    ROUTE_COLOR.get(route, "#555"),
-                "icon":     ROUTE_ICON.get(route, "📦"),
+                "color":    route_color.get(route, "#555"),
+                "icon":     route_icon.get(route, "📦"),
             })
             seen.add(route)
     for route in sorted(route_sos):
@@ -159,10 +154,11 @@ def get_route_sos(route_name: str) -> dict:
         if so_id and so_id in so_map:
             so_map[so_id]["packages"] += len(p.get("package_level_ids") or [])
 
+    _, route_color, _ = _routes_cfg()
     result = sorted(so_map.values(), key=lambda x: (x["carrier"], x["so"]))
     return {
         "route":    route_name,
-        "color":    ROUTE_COLOR.get(route_name, "#555"),
+        "color":    route_color.get(route_name, "#555"),
         "so_count": len(result),
         "sos":      result,
     }

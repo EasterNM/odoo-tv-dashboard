@@ -5,6 +5,7 @@ Store TV Service
 from datetime import datetime, timezone
 from services.odoo_client import odoo
 from services.sales_service import _get_problem_so_ids
+from services.app_config import get_config
 
 PICKING_FIELDS = [
     "name", "origin", "partner_id", "state", "picking_type_id", "create_date", "sale_id",
@@ -27,7 +28,7 @@ COLUMNS = ["pick", "pack", "delivery"]
 
 
 def get_store_pickings() -> dict:
-    DATE_FROM = "2026-05-01 00:00:00"
+    DATE_FROM = get_config()["date_from"] + " 00:00:00"
 
     # query คลังหลัก: ต้องมี origin (SO)
     main_records = odoo.search_read("stock.picking", [

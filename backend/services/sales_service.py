@@ -7,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone, timedelta
 
 from services.odoo_client import odoo
+from services.app_config import get_config
 
 SO_FIELDS = [
     "name", "partner_id", "write_date", "date_order",
@@ -14,8 +15,6 @@ SO_FIELDS = [
     "x_studio_boolean_field_62d_1jnoq6a7n",    # ทำบิลจริงแล้ว
     "x_studio_selection_field_92b_1jnor75f1",  # เส้นทางการจัดส่ง
 ]
-
-ROUTE_ORDER = ["กรุงเทพ", "สายใน", "สายนอก", "รับหน้าบริษัท", "เซลล์ส่งเอง"]
 
 PICK_TYPE_ID = 3
 PACK_TYPE_ID = 4
@@ -106,17 +105,22 @@ def _get_problem_so_ids(order_ids: list[int]) -> dict[int, dict]:
 
 
 def get_ready_to_invoice() -> list[dict]:
+    cfg = get_config()
+    date_from = cfg["date_from"] + " 00:00:00"
+    billed_hide_hours = int(cfg.get("billed_hide_hours", 24))
+    route_order: list[str] = [r["name"] for r in cfg.get("routes", [])]
+
     orders = odoo.search_read(
         "sale.order",
         [
             ("order_line.x_studio_picked", ">", 0),
-            ("date_order", ">=", "2026-05-01 00:00:00"),
+            ("date_order", ">=", date_from),
         ],
         SO_FIELDS,
         limit=300,
     )
 
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=billed_hide_hours)
 
     def _billed_and_expired(o: dict) -> bool:
         if not o.get("x_studio_boolean_field_62d_1jnoq6a7n"):
@@ -167,7 +171,7 @@ def get_ready_to_invoice() -> list[dict]:
         items[:] = pending + billed
 
     def route_rank(name):
-        try:    return ROUTE_ORDER.index(name)
+        try:    return route_order.index(name)
         except ValueError: return 99
 
     result = [

@@ -1,0 +1,16 @@
+{
+  "date_from": "2026-05-10",
+  "billed_hide_hours": 48,
+  "routes": [
+    {
+      "name": "กรุงเทพ",
+      "color": "#1f6feb",
+      "icon": "🏙️"
+    },
+    {
+      "name": "สายใน",
+      "color": "#238636",
+      "icon": "🛣️"
+    }
+  ]
+}
