@@ -4,7 +4,7 @@
 
 ---
 
-## สถานะปัจจุบัน (2026-05-06) — อัปเดตล่าสุด
+## สถานะปัจจุบัน (2026-05-12) — อัปเดตล่าสุด
 
 ### URL ที่ใช้งานได้
 | หน้า | URL |
@@ -15,6 +15,7 @@
 | Transport TV | https://odoo-tv-dashboard.onrender.com/transport |
 | Mobile รับบิล | https://odoo-tv-dashboard.onrender.com/mobile/receive-bill |
 | Tablet ขึ้นรถ | https://odoo-tv-dashboard.onrender.com/tablet/dispatch |
+| **Admin** | **https://odoo-tv-dashboard.onrender.com/admin** |
 | API Docs | https://odoo-tv-dashboard.onrender.com/docs |
 
 ### Deployment
@@ -180,6 +181,38 @@ Flow เมื่อ confirm ขึ้นรถ:
 #### Frontend tablet auto-download PDF
 - confirm success → decode base64 → Blob → trigger `.pdf` download อัตโนมัติ
 
+### Session 6 (2026-05-12)
+
+#### หน้า Admin (`/admin`) — ตั้งค่าระบบผ่าน UI
+
+**สร้างใหม่:**
+- `backend/services/app_config.py` — อ่าน/เขียน `backend/config/app_config.json` พร้อม in-memory cache
+- `frontend/admin/index.html` — Admin UI dark-theme (password-protected)
+- `backend/config/app_config.json` — เก็บ operational config (สร้างเมื่อ admin save ครั้งแรก)
+
+**Endpoints ใหม่:**
+- `GET /admin` — หน้า Admin UI
+- `POST /api/admin/login` — รับ password → คืน token (SHA-256)
+- `GET /api/admin/config` — ดึง config ปัจจุบัน (ต้องมี X-Admin-Token)
+- `POST /api/admin/config` — บันทึก config ใหม่ (ต้องมี X-Admin-Token)
+
+**ค่าที่ตั้งได้ผ่าน Admin:**
+| Setting | คำอธิบาย |
+|---------|----------|
+| DATE_FROM | วันที่เริ่มกรองข้อมูลของ TV ทุกหน้า (เปลี่ยนต้นเดือน) |
+| billed_hide_hours | ซ่อน SO ที่ทำบิลแล้วหลังกี่ชั่วโมง (default 24) |
+| routes | เพิ่ม/ลบ/เรียง เส้นทางจัดส่ง พร้อม สี + icon |
+
+**Refactor services:** `sales_service`, `store_service`, `transport_service`, `dispatch_service` — เปลี่ยนจาก hardcode DATE_FROM / ROUTE_ORDER มาอ่านจาก `app_config` แทน
+
+**Auth:** `ADMIN_PASSWORD` ใน `.env` → SHA-256 hash เก็บใน session storage ฝั่ง browser
+
+**หน้าหลัก:** เพิ่ม card ⚙️ ตั้งค่าระบบ → `/admin`
+
+**Commit:** `48cdcc4` — pushed to main, Render auto-deploy
+
+---
+
 ### Session 5 (2026-05-06 ต่อเนื่อง)
 
 #### Bug Fix: ยอด Pack ใน ⚠ Pick≠Pack ยังสูงเกินหลัง Return Pack
@@ -245,6 +278,8 @@ pack_qty[so_id] += pack_sign[pid] * qty  # หัก return ออก
 ```bash
 # Run local (port 8001 เพราะ 8000 ถูกใช้อยู่)
 uvicorn main:app --app-dir backend --host 0.0.0.0 --port 8001
+
+# Admin password อยู่ใน backend/config/.env → ADMIN_PASSWORD
 
 # Deploy (auto เมื่อ push main)
 git push origin main
