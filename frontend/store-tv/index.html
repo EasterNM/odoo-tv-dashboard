@@ -143,6 +143,37 @@
     .warn-diff { color: #f85149; font-weight: bold; }
 
     main { flex: 1; overflow: hidden; padding: 0; }
+
+    /* ── pending-bill badge ── */
+    #bill-badge {
+      position: fixed;
+      bottom: 1.2rem;
+      right: 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      padding: 1.1rem 1.95rem;
+      border-radius: 24px;
+      background: #161b22;
+      border: 1.5px solid #d29922;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.55);
+      z-index: 999;
+      cursor: default;
+      transition: border-color 0.3s;
+    }
+    #bill-badge.has-bills {
+      border-color: #f85149;
+      animation: pulse-border 2s infinite;
+    }
+    @keyframes pulse-border {
+      0%, 100% { box-shadow: 0 4px 18px rgba(248,81,73,0.25); }
+      50%       { box-shadow: 0 4px 28px rgba(248,81,73,0.65); }
+    }
+    #bill-badge .bb-icon  { font-size: 3rem; line-height: 1; }
+    #bill-badge .bb-body  { display: flex; flex-direction: column; line-height: 1.3; }
+    #bill-badge .bb-label { font-size: 1.35rem; color: #8b949e; }
+    #bill-badge .bb-count { font-size: 2.55rem; font-weight: bold; color: #e6edf3; }
+    #bill-badge.has-bills .bb-count { color: #f85149; }
   </style>
 </head>
 <body class="store">
@@ -152,6 +183,15 @@
     <div id="clock"></div>
     <div id="last-updated"></div>
   </header>
+
+  <!-- pending-bill badge -->
+  <div id="bill-badge">
+    <span class="bb-icon">🧾</span>
+    <div class="bb-body">
+      <span class="bb-label">บิลรอรับ</span>
+      <span class="bb-count" id="bill-count">—</span>
+    </div>
+  </div>
 
   <main>
     <div class="four-col">
@@ -308,9 +348,23 @@
       } catch(e) { console.error(e); }
     }
 
+    async function fetchPendingBills() {
+      try {
+        const res  = await fetch("/api/mobile/pending-receipts");
+        const json = await res.json();
+        const count = (json.data || []).length;
+        const badge = document.getElementById("bill-badge");
+        const countEl = document.getElementById("bill-count");
+        countEl.textContent = count + " บิล";
+        badge.classList.toggle("has-bills", count > 0);
+      } catch(e) { console.error(e); }
+    }
+
     startClock();
     fetchData();
+    fetchPendingBills();
     setInterval(fetchData, 10000);
+    setInterval(fetchPendingBills, 30000);
   </script>
 </body>
 </html>
