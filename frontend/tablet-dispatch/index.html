@@ -125,17 +125,6 @@
     }
     #lbl-so-count { font-size: 0.85rem; color: #8b949e; }
 
-    .btn-select-all {
-      background: #21262d;
-      border: 1px solid #30363d;
-      color: #e6edf3;
-      padding: 0.45rem 1rem;
-      border-radius: 7px;
-      font-size: 0.9rem;
-      cursor: pointer;
-    }
-    .btn-select-all:active { background: #30363d; }
-
     #btn-confirm-dispatch {
       background: #238636;
       border: none;
@@ -353,7 +342,6 @@
     <div class="table-toolbar">
       <span id="lbl-route-name"></span>
       <span id="lbl-so-count"></span>
-      <button class="btn-select-all" id="btn-select-all">เลือกทั้งหมด</button>
       <button id="btn-confirm-dispatch" disabled>✔ ยืนยันขึ้นรถ (0)</button>
     </div>
     <div class="table-wrap">
@@ -609,24 +597,6 @@
       saveState();
     }
 
-    document.getElementById("btn-select-all").addEventListener("click", () => {
-      const allSelected = selectedIds.size === soData.length;
-      if (allSelected) {
-        selectedIds.clear();
-        soData.forEach(s => {
-          document.getElementById("row-" + s.so_id).classList.remove("row-selected");
-          document.getElementById("cb-" + s.so_id).checked = false;
-        });
-      } else {
-        soData.forEach(s => {
-          selectedIds.add(s.so_id);
-          document.getElementById("row-" + s.so_id).classList.add("row-selected");
-          document.getElementById("cb-" + s.so_id).checked = true;
-        });
-      }
-      updateConfirmBtn();
-      saveState();
-    });
 
     function updateConfirmBtn() {
       const btn = document.getElementById("btn-confirm-dispatch");
