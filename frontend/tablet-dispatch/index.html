@@ -413,6 +413,29 @@
     let selectedIds  = new Set();// so_id (int) set
     let noteMap      = {};       // so_id → note string
 
+    // ── Session state persistence (รักษา state ข้าม refresh) ─────────────────
+    const stateKey = r => `ds_${r}`;
+
+    function saveState() {
+      if (!currentRoute) return;
+      sessionStorage.setItem(stateKey(currentRoute), JSON.stringify({
+        sel:   [...selectedIds],
+        all:   soData.map(s => s.so_id),
+        notes: noteMap,
+      }));
+    }
+
+    function loadState() {
+      try {
+        const raw = sessionStorage.getItem(stateKey(currentRoute));
+        return raw ? JSON.parse(raw) : null;
+      } catch { return null; }
+    }
+
+    function clearState() {
+      if (currentRoute) sessionStorage.removeItem(stateKey(currentRoute));
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
     function thaiNow() {
       const d = new Date();
@@ -524,20 +547,34 @@
       }
       document.getElementById("no-sos").style.display = "none";
 
-      // pre-select all
-      selectedIds = new Set(sos.map(s => s.so_id));
-      noteMap = {};
+      // restore state — SO ใหม่ที่ไม่เคยเห็น auto-select, SO เดิมคงสถานะ
+      const saved = loadState();
+      if (saved) {
+        const prevAll = new Set(saved.all);
+        const prevSel = new Set(saved.sel);
+        noteMap = saved.notes || {};
+        selectedIds = new Set();
+        sos.forEach(s => {
+          if (!prevAll.has(s.so_id) || prevSel.has(s.so_id))
+            selectedIds.add(s.so_id);
+        });
+      } else {
+        selectedIds = new Set(sos.map(s => s.so_id));
+        noteMap = {};
+      }
 
       let prevCarrier = null;
       tbody.innerHTML = sos.map(s => {
         const isNewGroup = s.carrier !== prevCarrier;
         prevCarrier = s.carrier;
+        const checked  = selectedIds.has(s.so_id);
+        const noteVal  = (noteMap[s.so_id] || "").replace(/"/g, "&quot;");
         const billMark = s.received
           ? `<span class="bill-tick">✔</span>`
           : `<span class="bill-none">—</span>`;
         return `
-          <tr id="row-${s.so_id}" class="row-selected${isNewGroup ? ' carrier-group-start' : ''}" onclick="toggleRow(${s.so_id}, event)">
-            <td><input type="checkbox" class="cb-row" id="cb-${s.so_id}" checked
+          <tr id="row-${s.so_id}" class="${checked ? 'row-selected' : ''}${isNewGroup ? ' carrier-group-start' : ''}" onclick="toggleRow(${s.so_id}, event)">
+            <td><input type="checkbox" class="cb-row" id="cb-${s.so_id}" ${checked ? 'checked' : ''}
                        onclick="event.stopPropagation(); toggleRow(${s.so_id})"></td>
             <td class="td-so">${s.so}</td>
             <td class="td-cust" title="${s.customer}">${s.customer}</td>
@@ -547,8 +584,8 @@
             <td class="td-num">${s.packages}</td>
             <td class="td-num">${s.qty}</td>
             <td class="td-note" onclick="event.stopPropagation()">
-              <input type="text" placeholder="หมายเหตุ..."
-                     oninput="noteMap[${s.so_id}] = this.value"
+              <input type="text" placeholder="หมายเหตุ..." value="${noteVal}"
+                     oninput="noteMap[${s.so_id}] = this.value; saveState()"
                      onclick="event.stopPropagation()">
             </td>
           </tr>`;
@@ -569,6 +606,7 @@
         document.getElementById("cb-" + soId).checked = true;
       }
       updateConfirmBtn();
+      saveState();
     }
 
     document.getElementById("btn-select-all").addEventListener("click", () => {
@@ -587,6 +625,7 @@
         });
       }
       updateConfirmBtn();
+      saveState();
     });
 
     function updateConfirmBtn() {
@@ -672,6 +711,7 @@
 
           showToast(`✅ ${json.doc_no} — ขึ้นรถ ${json.confirmed} SO เรียบร้อย`, 4000);
 
+          clearState();
           // Remove confirmed SOs from table
           selectedIds.forEach(id => {
             const row = document.getElementById("row-" + id);
