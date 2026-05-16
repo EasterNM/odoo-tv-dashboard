@@ -4,7 +4,7 @@
 
 ---
 
-## สถานะปัจจุบัน (2026-05-12) — อัปเดตล่าสุด
+## สถานะปัจจุบัน (2026-05-16) — อัปเดตล่าสุด
 
 ### URL ที่ใช้งานได้
 | หน้า | URL |
@@ -210,6 +210,28 @@ Flow เมื่อ confirm ขึ้นรถ:
 **หน้าหลัก:** เพิ่ม card ⚙️ ตั้งค่าระบบ → `/admin`
 
 **Commit:** `48cdcc4` — pushed to main, Render auto-deploy
+
+---
+
+### Session 7 (2026-05-16)
+
+#### Badge บิลรอรับ — Store TV & Transport TV
+- เพิ่ม floating badge มุมขวาล่างทั้ง 2 หน้า แสดง 🧾 + จำนวนบิลรอรับ
+- ดึงข้อมูลจาก `/api/mobile/pending-receipts` ทุก 30 วินาที (แยก interval จาก main data)
+- **ไม่มีบิล** → กรอบสีเหลือง (amber) | **มีบิล** → กรอบแดง + pulse glow animation
+- ขนาด: icon 3rem, ตัวเลข 2.55rem, padding 1.1 × 1.95rem, border-radius 24px
+- **Commits**: `be2078c`
+
+#### Tablet Dispatch — แก้ bug state หายหลัง refresh
+- **ปัญหา**: refresh ขณะขึ้นงานอยู่ → SO ใหม่โผล่ขึ้นมา + ที่ติ้กไว้ก็หายทั้งหมด
+- **แก้ด้วย `sessionStorage`** — เก็บ `{sel, all, notes}` ต่อเส้นทาง พอ renderTable ทำงาน:
+  - SO เดิมที่ติ้ก → คงสถานะ ✔
+  - SO เดิมที่เอาออก → ยังไม่ติ้ก
+  - SO ใหม่ที่ไม่เคยเห็น → auto-select ✔
+  - Note ที่กรอกไว้ → คงอยู่ (restore ค่า `value` ใน input)
+- หลัง confirm สำเร็จ → `clearState()` ล้าง sessionStorage ของเส้นทางนั้น
+- ลบปุ่ม **เลือกทั้งหมด** ออก (CSS + HTML + JS handler)
+- **Commits**: `8e04048`, `75a0fa7`
 
 ---
 
