@@ -381,7 +381,7 @@
       </div>
       <div class="form-group">
         <label>เวลาออกรถ *</label>
-        <input id="inp-time" type="text" placeholder="HH:MM" autocomplete="off">
+        <input id="inp-time" type="time" autocomplete="off">
       </div>
 
       <div class="modal-actions">
@@ -395,6 +395,14 @@
   <div id="toast"></div>
 
   <script>
+    function escHtml(s) {
+      return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
     // ── State ────────────────────────────────────────────────────────────────
     let currentRoute = null;
     let soData       = [];       // array of SO objects from API
@@ -476,12 +484,12 @@
         }
 
         grid.innerHTML = routes.map(r => `
-          <button class="route-btn" style="background:${r.color};"
-                  data-route="${r.route.replace(/"/g,'&quot;')}"
-                  data-color="${r.color}">
-            <span class="btn-icon">${r.icon}</span>
-            <span class="btn-name">${r.route}</span>
-            <span class="btn-count">${r.so_count} SO รอขึ้นรถ</span>
+          <button class="route-btn" style="background:${escHtml(r.color)};"
+                  data-route="${escHtml(r.route)}"
+                  data-color="${escHtml(r.color)}">
+            <span class="btn-icon">${escHtml(r.icon)}</span>
+            <span class="btn-name">${escHtml(r.route)}</span>
+            <span class="btn-count">${Number(r.so_count)} SO รอขึ้นรถ</span>
           </button>
         `).join("");
 
@@ -556,7 +564,7 @@
         const isNewGroup = s.carrier !== prevCarrier;
         prevCarrier = s.carrier;
         const checked  = selectedIds.has(s.so_id);
-        const noteVal  = (noteMap[s.so_id] || "").replace(/"/g, "&quot;");
+        const noteVal  = escHtml(noteMap[s.so_id] || "");
         const billMark = s.received
           ? `<span class="bill-tick">✔</span>`
           : `<span class="bill-none">—</span>`;
@@ -564,13 +572,13 @@
           <tr id="row-${s.so_id}" class="${checked ? 'row-selected' : ''}${isNewGroup ? ' carrier-group-start' : ''}" onclick="toggleRow(${s.so_id}, event)">
             <td><input type="checkbox" class="cb-row" id="cb-${s.so_id}" ${checked ? 'checked' : ''}
                        onclick="event.stopPropagation(); toggleRow(${s.so_id})"></td>
-            <td class="td-so">${s.so}</td>
-            <td class="td-cust" title="${s.customer}">${s.customer}</td>
-            <td class="td-prov">${s.province}</td>
-            <td class="td-car">${s.carrier}</td>
+            <td class="td-so">${escHtml(s.so)}</td>
+            <td class="td-cust" title="${escHtml(s.customer)}">${escHtml(s.customer)}</td>
+            <td class="td-prov">${escHtml(s.province)}</td>
+            <td class="td-car">${escHtml(s.carrier)}</td>
             <td style="text-align:center;">${billMark}</td>
-            <td class="td-num">${s.packages}</td>
-            <td class="td-num">${s.qty}</td>
+            <td class="td-num">${Number(s.packages)}</td>
+            <td class="td-num">${Number(s.qty)}</td>
             <td class="td-note" onclick="event.stopPropagation()">
               <input type="text" placeholder="หมายเหตุ..." value="${noteVal}"
                      oninput="noteMap[${s.so_id}] = this.value; saveState()"
@@ -614,7 +622,7 @@
       // build SO list display
       const selected = soData.filter(s => selectedIds.has(s.so_id));
       document.getElementById("modal-so-list").innerHTML =
-        selected.map(s => `<span>${s.so}</span>${s.customer}`).join("<br>");
+        selected.map(s => `<span>${escHtml(s.so)}</span>${escHtml(s.customer)}`).join("<br>");
 
       // pre-fill time
       document.getElementById("inp-time").value = thaiNow();

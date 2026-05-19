@@ -263,6 +263,17 @@
     .success-list  { margin-top: 1rem; text-align: left; background: #f0fdf4;
                      border-radius: 10px; padding: 0.8rem 1rem; width: 100%; }
     .success-list li { font-size: 0.9rem; color: #166534; padding: 0.2rem 0; }
+    .btn-reload {
+      margin-top: 1.5rem;
+      padding: 0.75rem 2rem;
+      border-radius: 10px;
+      border: 2px solid #1158a8;
+      background: #fff;
+      color: #1158a8;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
 
     .spinner {
       display: inline-block;
@@ -294,6 +305,7 @@
     <div class="success-title">บันทึกสำเร็จ!</div>
     <div class="success-sub">รับบิลเรียบร้อยแล้ว<br><strong id="success-doc-no" style="color:#15803d;font-size:1.1rem;"></strong></div>
     <ul class="success-list" id="success-list"></ul>
+    <button class="btn-reload" onclick="location.reload()">↩ รับบิลเพิ่มเติม</button>
   </div>
 
   <div class="bottom-bar" id="bottom-bar">
@@ -372,7 +384,7 @@
         const easyRow = so.easy_no
           ? `<div class="easy-row">
                <span class="easy-label">เลขบิล easy-acc:</span>
-               <span class="easy-no-val">${so.easy_no}</span>
+               <span class="easy-no-val">${escHtml(so.easy_no)}</span>
              </div>`
           : `<div class="easy-row"><span class="easy-none">ยังไม่มีเลขบิล easy-acc</span></div>`;
         return `
@@ -380,10 +392,10 @@
             <input type="checkbox" ${checked ? 'checked' : ''}
                    onclick="event.stopPropagation();toggleItem(${so.id})">
             <div class="so-info">
-              <div class="so-name">${so.so}</div>
+              <div class="so-name">${escHtml(so.so)}</div>
               ${easyRow}
-              <div class="so-cust">${so.customer}</div>
-              <div class="so-meta">${so.date}</div>
+              <div class="so-cust">${escHtml(so.customer)}</div>
+              <div class="so-meta">${escHtml(so.date)}</div>
             </div>
           </div>`;
       }).join('');
@@ -422,12 +434,12 @@
           <span class="check-icon">✓</span>
           <div style="flex:1;min-width:0;">
             <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap;">
-              <b>${so.so}</b>
+              <b>${escHtml(so.so)}</b>
               ${so.easy_no
-                ? `<span style="font-size:0.8rem;font-weight:700;color:#1d4ed8;background:#dbeafe;border-radius:4px;padding:0.05rem 0.4rem;font-family:monospace;">${so.easy_no}</span>`
+                ? `<span style="font-size:0.8rem;font-weight:700;color:#1d4ed8;background:#dbeafe;border-radius:4px;padding:0.05rem 0.4rem;font-family:monospace;">${escHtml(so.easy_no)}</span>`
                 : `<span style="font-size:0.75rem;color:#94a3b8;">ไม่มีเลขบิล</span>`}
             </div>
-            <div style="font-size:0.8rem;color:#666;margin-top:0.1rem;">${so.customer}</div>
+            <div style="font-size:0.8rem;color:#666;margin-top:0.1rem;">${escHtml(so.customer)}</div>
           </div>
         </div>`).join('');
 
@@ -442,9 +454,14 @@
     // ── Signature pad ────────────────────────────────────────────────────────
     function initSignature() {
       sigCanvas = document.getElementById('sig-canvas');
-      // ปรับขนาด canvas ให้ตรงกับ display size
-      sigCanvas.width  = sigCanvas.offsetWidth;
+      const dpr = window.devicePixelRatio || 1;
+      const cssW = sigCanvas.offsetWidth;
+      const cssH = 160;
+      sigCanvas.width  = cssW * dpr;
+      sigCanvas.height = cssH * dpr;
+      sigCanvas.style.height = cssH + 'px';
       sigCtx   = sigCanvas.getContext('2d');
+      sigCtx.scale(dpr, dpr);
       sigCtx.strokeStyle = '#1a1a2e';
       sigCtx.lineWidth   = 2.5;
       sigCtx.lineCap     = 'round';
@@ -522,7 +539,7 @@
 
         const confirmed = allSOs.filter(so => checkedIds.has(so.id));
         document.getElementById('success-list').innerHTML =
-          confirmed.map(so => `<li>✅ ${so.so} — ${so.customer}</li>`).join('');
+          confirmed.map(so => `<li>✅ ${escHtml(so.so)} — ${escHtml(so.customer)}</li>`).join('');
         if (json.doc_no) {
           document.getElementById('success-doc-no').textContent = `เลขที่เอกสาร: ${json.doc_no}`;
         }
@@ -533,6 +550,14 @@
         btn.disabled = false;
         btn.textContent = 'ยืนยันและบันทึก';
       }
+    }
+
+    function escHtml(s) {
+      return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
     }
 
     loadData();
