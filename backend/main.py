@@ -1,9 +1,12 @@
+import socket
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 from pathlib import Path
 
 load_dotenv(Path(__file__).parent / "config" / ".env")
+
+socket.setdefaulttimeout(30)
 
 from routes.api import router
 

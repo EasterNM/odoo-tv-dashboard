@@ -2,6 +2,7 @@
 Dispatch Service — Tablet Loading Page
 จัดการข้อมูลสำหรับหน้า tablet ยืนยันขึ้นรถ
 """
+import html
 from datetime import datetime, timezone, timedelta
 from services.odoo_client import odoo
 from services.pdf_service import build_dispatch_pdf, pdf_to_base64
@@ -185,10 +186,8 @@ def confirm_dispatch(route: str, so_ids: list, plate: str, driver: str,
     order_map  = {o["id"]: o for o in orders}
     so_names   = ", ".join(order_map[i]["name"] for i in so_ids if i in order_map)
 
-    # ── 1. Mark ขึ้นรถแล้ว บน sale.order ────────────────────────────────
-    odoo.write("sale.order", so_ids, {FIELD_DISPATCHED: True})
-
-    # ── 2. สร้าง dispatch record ─────────────────────────────────────────
+    # ── 1. สร้าง dispatch record ─────────────────────────────────────────
+    # สร้าง record ก่อน แล้วค่อย mark SO เพื่อให้มีเอกสารอ้างอิงก่อนเสมอ
     doc_no      = _next_dispatch_doc_number(now_thai.year)
     dispatch_id = odoo.create(DISPATCH_MODEL, {
         "x_name":        doc_no,
@@ -199,6 +198,9 @@ def confirm_dispatch(route: str, so_ids: list, plate: str, driver: str,
         "x_state":       "confirmed",
         "x_so_ids":      [[6, 0, so_ids]],
     })
+
+    # ── 2. Mark ขึ้นรถแล้ว บน sale.order ────────────────────────────────
+    odoo.write("sale.order", so_ids, {FIELD_DISPATCHED: True})
 
     # ── 3. สร้าง PDF ──────────────────────────────────────────────────────
     # ดึง packages/qty จาก get_route_sos (มีแล้วใน soData ฝั่ง frontend)
@@ -259,15 +261,19 @@ def confirm_dispatch(route: str, so_ids: list, plate: str, driver: str,
         "mimetype":  "application/pdf",
     })
 
+    safe_route  = html.escape(route)
+    safe_plate  = html.escape(plate)
+    safe_driver = html.escape(driver)
+    safe_depart = html.escape(depart_time)
     so_list_html = "".join(
-        f"<li>{order_map[i]['name']}</li>" for i in so_ids if i in order_map
+        f"<li>{html.escape(order_map[i]['name'])}</li>" for i in so_ids if i in order_map
     )
     odoo.execute_method(DISPATCH_MODEL, "message_post", [dispatch_id], {
         "body": (
             f"<p>🚚 <strong>ยืนยันขึ้นรถ — {doc_no}</strong></p>"
-            f"<p>เส้นทาง: <strong>{route}</strong></p>"
-            f"<p>ทะเบียนรถ: <strong>{plate}</strong> | คนขับ: <strong>{driver}</strong></p>"
-            f"<p>เวลาออกรถ: <strong>{depart_time} น.</strong> | วันที่: {date_str}</p>"
+            f"<p>เส้นทาง: <strong>{safe_route}</strong></p>"
+            f"<p>ทะเบียนรถ: <strong>{safe_plate}</strong> | คนขับ: <strong>{safe_driver}</strong></p>"
+            f"<p>เวลาออกรถ: <strong>{safe_depart} น.</strong> | วันที่: {date_str}</p>"
             f"<p>รายการ SO:</p><ul>{so_list_html}</ul>"
         ),
         "message_type": "comment",
@@ -277,14 +283,14 @@ def confirm_dispatch(route: str, so_ids: list, plate: str, driver: str,
     # ── 5. Post chatter บนแต่ละ SO ───────────────────────────────────────
     for so_id in so_ids:
         note      = (notes.get(str(so_id)) or "").strip()
-        note_html = f"<p>หมายเหตุ: {note}</p>" if note else ""
+        note_html = f"<p>หมายเหตุ: {html.escape(note)}</p>" if note else ""
         odoo.execute_method("sale.order", "message_post", [so_id], {
             "body": (
-                f"<p>🚚 <strong>ขึ้นรถแล้ว — เส้นทาง {route}</strong></p>"
-                f"<p>ทะเบียนรถ: <strong>{plate}</strong> | คนขับ: <strong>{driver}</strong></p>"
-                f"<p>เวลาออกรถ: <strong>{depart_time} น.</strong> | วันที่: {date_str}</p>"
+                f"<p>🚚 <strong>ขึ้นรถแล้ว — เส้นทาง {safe_route}</strong></p>"
+                f"<p>ทะเบียนรถ: <strong>{safe_plate}</strong> | คนขับ: <strong>{safe_driver}</strong></p>"
+                f"<p>เวลาออกรถ: <strong>{safe_depart} น.</strong> | วันที่: {date_str}</p>"
                 f"<p>เลขที่เอกสาร: <strong>{doc_no}</strong></p>"
-                f"<p>รับพร้อมกัน: {so_names}</p>"
+                f"<p>รับพร้อมกัน: {html.escape(so_names)}</p>"
                 f"{note_html}"
             ),
             "message_type": "comment",

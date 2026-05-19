@@ -2,8 +2,10 @@
 Bill Receipt Service
 จัดการการรับบิลจากแผนกเซลล์ — mobile flow
 """
+import html
 from datetime import datetime, timezone, timedelta
 from services.odoo_client import odoo
+from services.app_config import get_config
 
 THAI_TZ = timezone(timedelta(hours=7))
 
@@ -11,7 +13,6 @@ FIELD_INVOICED  = "x_studio_boolean_field_62d_1jnoq6a7n"   # ทำบิลจ�
 FIELD_RECEIVED  = "x_studio_boolean_field_5bd_1jnp0r53i"   # รับบิลแล้ว
 FIELD_RECV_TIME = "x_studio_datetime_field_is_1jnrfclrr"   # เวลารับบิล
 FIELD_EASY_NO   = "x_studio_char_field_50v_1jnoq3ou3"      # เลขบิล easy-acc
-DATE_FROM       = "2026-05-01 00:00:00"
 
 TRANSFER_MODEL  = "x_tv_dashboard_invoice"
 LINE_MODEL      = "x_tv_dashboard_invoice_line_1992d"
@@ -29,10 +30,11 @@ def _next_doc_number(year: int) -> str:
 
 def get_pending_receipts() -> list:
     """SO ที่ทำบิลแล้ว แต่ยังไม่รับบิล"""
+    date_from = get_config()["date_from"] + " 00:00:00"
     orders = odoo.search_read("sale.order", [
         (FIELD_INVOICED, "=", True),
         (FIELD_RECEIVED, "=", False),
-        ("date_order", ">=", DATE_FROM),
+        ("date_order", ">=", date_from),
     ], ["id", "name", "partner_id", "date_order", FIELD_EASY_NO],
        limit=200, order="name desc")
 
@@ -96,14 +98,15 @@ def confirm_receipt(so_ids: list, signature_b64: str, signer_name: str) -> dict:
     })
 
     # 4. Post chatter บน transfer record (สรุปรอบนี้)
+    safe_signer = html.escape(signer_name)
     so_list_html = "".join(
-        f"<li>{order_map[i]['name']} — {order_map[i]['partner_id'][1] if order_map[i].get('partner_id') else '-'}</li>"
+        f"<li>{html.escape(order_map[i]['name'])} — {html.escape(order_map[i]['partner_id'][1]) if order_map[i].get('partner_id') else '-'}</li>"
         for i in so_ids if i in order_map
     )
     odoo.execute_method(TRANSFER_MODEL, "message_post", [transfer_id], {
         "body": (
             f"<p>✅ <strong>รับบิลแล้ว</strong></p>"
-            f"<p>ผู้รับ: <strong>{signer_name}</strong></p>"
+            f"<p>ผู้รับ: <strong>{safe_signer}</strong></p>"
             f"<p>เวลา: {now_str} น.</p>"
             f"<p>รายการ SO:</p><ul>{so_list_html}</ul>"
         ),
@@ -126,7 +129,7 @@ def confirm_receipt(so_ids: list, signature_b64: str, signer_name: str) -> dict:
         odoo.execute_method("sale.order", "message_post", [so_id], {
             "body": (
                 f"<p>✅ <strong>รับบิลแล้ว</strong></p>"
-                f"<p>ผู้รับ: <strong>{signer_name}</strong></p>"
+                f"<p>ผู้รับ: <strong>{safe_signer}</strong></p>"
                 f"<p>เวลา: {now_str} น.</p>"
                 f"<p>เลขที่เอกสาร: <strong>{doc_no}</strong></p>"
                 f"<p>รับพร้อมกัน:</p><ul>{so_list_html}</ul>"
