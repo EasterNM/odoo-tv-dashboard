@@ -3,10 +3,13 @@ Dispatch Service — Tablet Loading Page
 จัดการข้อมูลสำหรับหน้า tablet ยืนยันขึ้นรถ
 """
 import html
+import threading
 from datetime import datetime, timezone, timedelta
 from services.odoo_client import odoo
 from services.pdf_service import build_dispatch_pdf, pdf_to_base64
 from services.app_config import get_config
+
+_doc_lock = threading.Lock()
 
 FIELD_ROUTE      = "x_studio_selection_field_92b_1jnor75f1"
 FIELD_RECEIVED   = "x_studio_boolean_field_5bd_1jnp0r53i"
@@ -27,12 +30,13 @@ def _routes_cfg() -> tuple[list[str], dict[str, str], dict[str, str]]:
 
 def _next_dispatch_doc_number(year: int) -> str:
     prefix = f"DT{year}/"
-    count = odoo.models.execute_kw(
-        odoo.db, odoo.authenticate(), odoo.password,
-        DISPATCH_MODEL, "search_count",
-        [[["x_name", "like", prefix + "%"]]],
-    )
-    return f"{prefix}{count + 1:04d}"
+    with _doc_lock:
+        count = odoo.models.execute_kw(
+            odoo.db, odoo.authenticate(), odoo.password,
+            DISPATCH_MODEL, "search_count",
+            [[["x_name", "like", prefix + "%"]]],
+        )
+        return f"{prefix}{count + 1:04d}"
 
 
 def _parse_depart_time(depart_time: str, thai_now: datetime) -> str:

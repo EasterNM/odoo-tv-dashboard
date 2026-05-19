@@ -21,7 +21,9 @@ _ADMIN_TOKEN: str | None = None
 def _get_admin_token() -> str:
     global _ADMIN_TOKEN
     if _ADMIN_TOKEN is None:
-        pw = os.getenv("ADMIN_PASSWORD", "admin")
+        pw = os.getenv("ADMIN_PASSWORD")
+        if not pw:
+            raise RuntimeError("ADMIN_PASSWORD environment variable is required")
         _ADMIN_TOKEN = hashlib.sha256(pw.encode()).hexdigest()
     return _ADMIN_TOKEN
 

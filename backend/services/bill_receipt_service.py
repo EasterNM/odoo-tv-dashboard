@@ -3,9 +3,12 @@ Bill Receipt Service
 จัดการการรับบิลจากแผนกเซลล์ — mobile flow
 """
 import html
+import threading
 from datetime import datetime, timezone, timedelta
 from services.odoo_client import odoo
 from services.app_config import get_config
+
+_doc_lock = threading.Lock()
 
 THAI_TZ = timezone(timedelta(hours=7))
 
@@ -20,12 +23,13 @@ LINE_MODEL      = "x_tv_dashboard_invoice_line_1992d"
 
 def _next_doc_number(year: int) -> str:
     prefix = f"IT{year}/"
-    count = odoo.models.execute_kw(
-        odoo.db, odoo.authenticate(), odoo.password,
-        TRANSFER_MODEL, "search_count",
-        [[["x_name", "like", prefix + "%"]]],
-    )
-    return f"{prefix}{count + 1:04d}"
+    with _doc_lock:
+        count = odoo.models.execute_kw(
+            odoo.db, odoo.authenticate(), odoo.password,
+            TRANSFER_MODEL, "search_count",
+            [[["x_name", "like", prefix + "%"]]],
+        )
+        return f"{prefix}{count + 1:04d}"
 
 
 def get_pending_receipts() -> list:
