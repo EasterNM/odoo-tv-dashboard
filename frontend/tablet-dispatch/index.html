@@ -463,7 +463,6 @@
         if (!added.length) return;
 
         soData = soData.concat(added);
-        added.forEach(s => selectedIds.add(s.so_id));
         appendNewRows(added);
         saveState();
         updateConfirmBtn();
@@ -482,10 +481,10 @@
           : `<span class="bill-none">—</span>`;
         const tr = document.createElement("tr");
         tr.id        = "row-" + s.so_id;
-        tr.className = "row-selected row-new";
+        tr.className = "row-new";
         tr.setAttribute("onclick", `toggleRow(${s.so_id}, event)`);
         tr.innerHTML = `
-          <td><input type="checkbox" class="cb-row" id="cb-${s.so_id}" checked
+          <td><input type="checkbox" class="cb-row" id="cb-${s.so_id}"
                      onclick="event.stopPropagation(); toggleRow(${s.so_id})"></td>
           <td class="td-so">${escHtml(s.so)}</td>
           <td class="td-cust" title="${escHtml(s.customer)}">${escHtml(s.customer)}</td>
