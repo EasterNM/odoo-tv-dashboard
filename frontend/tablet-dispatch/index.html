@@ -416,27 +416,35 @@
     let selectedIds  = new Set();// so_id (int) set
     let noteMap      = {};       // so_id → note string
 
-    // ── Session state persistence (รักษา state ข้าม refresh) ─────────────────
+    // ── State persistence (localStorage — รอดแม้ปิด tab หรือ browser) ──────────
     const stateKey = r => `ds_${r}`;
 
     function saveState() {
       if (!currentRoute) return;
-      sessionStorage.setItem(stateKey(currentRoute), JSON.stringify({
+      localStorage.setItem(stateKey(currentRoute), JSON.stringify({
         sel:   [...selectedIds],
         all:   soData.map(s => s.so_id),
         notes: noteMap,
+        ts:    Date.now(),
       }));
     }
 
     function loadState() {
       try {
-        const raw = sessionStorage.getItem(stateKey(currentRoute));
-        return raw ? JSON.parse(raw) : null;
+        const raw = localStorage.getItem(stateKey(currentRoute));
+        if (!raw) return null;
+        const data = JSON.parse(raw);
+        // ทิ้ง state ที่เก่าเกิน 12 ชั่วโมง (ข้ามวัน)
+        if (data.ts && Date.now() - data.ts > 12 * 60 * 60 * 1000) {
+          localStorage.removeItem(stateKey(currentRoute));
+          return null;
+        }
+        return data;
       } catch { return null; }
     }
 
     function clearState() {
-      if (currentRoute) sessionStorage.removeItem(stateKey(currentRoute));
+      if (currentRoute) localStorage.removeItem(stateKey(currentRoute));
     }
 
     // ── Live polling (append new SOs while on screen-table) ──────────────────
@@ -662,6 +670,7 @@
       }).join("");
 
       updateConfirmBtn();
+      saveState();
     }
 
     function toggleRow(soId, e) {
