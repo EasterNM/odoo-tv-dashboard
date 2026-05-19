@@ -321,6 +321,13 @@
       from { opacity: 0; transform: translateX(-50%) translateY(10px); }
       to   { opacity: 1; transform: translateX(-50%) translateY(0); }
     }
+
+    @keyframes rowIn {
+      from { background: #1a3a1a; }
+      to   { background: transparent; }
+    }
+    tbody tr.row-new { animation: rowIn 3s ease-out forwards; }
+    tbody tr.row-new.row-selected { animation: rowIn 3s ease-out forwards; }
   </style>
 </head>
 <body>
@@ -432,6 +439,72 @@
       if (currentRoute) sessionStorage.removeItem(stateKey(currentRoute));
     }
 
+    // ── Live polling (append new SOs while on screen-table) ──────────────────
+    let pollTimer = null;
+
+    function startPolling() {
+      stopPolling();
+      pollTimer = setInterval(pollRoute, 20000);
+    }
+
+    function stopPolling() {
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    }
+
+    async function pollRoute() {
+      if (!currentRoute) return;
+      try {
+        const res  = await fetch("/api/dispatch/route?name=" + encodeURIComponent(currentRoute));
+        const json = await res.json();
+        const fresh = (json.data && json.data.sos) || [];
+
+        const existingIds = new Set(soData.map(s => s.so_id));
+        const added = fresh.filter(s => !existingIds.has(s.so_id));
+        if (!added.length) return;
+
+        soData = soData.concat(added);
+        added.forEach(s => selectedIds.add(s.so_id));
+        appendNewRows(added);
+        saveState();
+        updateConfirmBtn();
+        document.getElementById("lbl-so-count").textContent = `${soData.length} SO`;
+        document.getElementById("no-sos").style.display = "none";
+        showToast(`✨ มี ${added.length} SO ใหม่พร้อมขึ้นรถ`, 3500);
+      } catch { /* silent — ไม่รบกวน UX ถ้า poll fail */ }
+    }
+
+    function appendNewRows(sos) {
+      const tbody = document.getElementById("so-tbody");
+      sos.forEach(s => {
+        const noteVal  = escHtml(noteMap[s.so_id] || "");
+        const billMark = s.received
+          ? `<span class="bill-tick">✔</span>`
+          : `<span class="bill-none">—</span>`;
+        const tr = document.createElement("tr");
+        tr.id        = "row-" + s.so_id;
+        tr.className = "row-selected row-new";
+        tr.setAttribute("onclick", `toggleRow(${s.so_id}, event)`);
+        tr.innerHTML = `
+          <td><input type="checkbox" class="cb-row" id="cb-${s.so_id}" checked
+                     onclick="event.stopPropagation(); toggleRow(${s.so_id})"></td>
+          <td class="td-so">${escHtml(s.so)}</td>
+          <td class="td-cust" title="${escHtml(s.customer)}">${escHtml(s.customer)}</td>
+          <td class="td-prov">${escHtml(s.province)}</td>
+          <td class="td-car">${escHtml(s.carrier)}</td>
+          <td style="text-align:center;">${billMark}</td>
+          <td class="td-num">${Number(s.packages)}</td>
+          <td class="td-num">${Number(s.qty)}</td>
+          <td class="td-note" onclick="event.stopPropagation()">
+            <input type="text" placeholder="หมายเหตุ..." value="${noteVal}"
+                   oninput="noteMap[${s.so_id}] = this.value; saveState()"
+                   onclick="event.stopPropagation()">
+          </td>`;
+        tbody.appendChild(tr);
+        // ลบ class row-new หลังอนิเมชันจบ เพื่อไม่ให้ซ้อนทับ hover state
+        tr.addEventListener("animationend", () => tr.classList.remove("row-new"), { once: true });
+      });
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
     function thaiNow() {
       const d = new Date();
@@ -457,6 +530,7 @@
 
     function goBack() {
       if (document.getElementById("screen-table").classList.contains("active")) {
+        stopPolling();
         showScreen("screen-routes");
         document.getElementById("btn-back").style.display = "none";
         document.getElementById("header-title").textContent = "เลือกเส้นทางจัดส่ง";
@@ -526,6 +600,7 @@
         const json = await res.json();
         soData = (json.data && json.data.sos) || [];
         renderTable(soData);
+        startPolling();
       } catch(e) {
         document.getElementById("lbl-so-count").textContent = "โหลดไม่ได้";
         console.error(e);
