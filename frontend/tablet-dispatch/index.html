@@ -625,7 +625,7 @@
       }
       document.getElementById("no-sos").style.display = "none";
 
-      // restore state — SO ใหม่ที่ไม่เคยเห็น auto-select, SO เดิมคงสถานะ
+      // restore state ถ้ามี หรือเริ่มใหม่โดยไม่เลือกอะไร
       const saved = loadState();
       if (saved) {
         const prevAll = new Set(saved.all);
@@ -633,11 +633,11 @@
         noteMap = saved.notes || {};
         selectedIds = new Set();
         sos.forEach(s => {
-          if (!prevAll.has(s.so_id) || prevSel.has(s.so_id))
+          if (prevAll.has(s.so_id) && prevSel.has(s.so_id))
             selectedIds.add(s.so_id);
         });
       } else {
-        selectedIds = new Set(sos.map(s => s.so_id));
+        selectedIds = new Set();
         noteMap = {};
       }
 
