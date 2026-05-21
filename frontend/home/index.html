@@ -109,6 +109,9 @@
     a.card.admin { border-color: #484f58; }
     a.card.admin:hover { border-color: #8b949e; box-shadow: 0 8px 32px rgba(72,79,88,0.3); }
 
+    a.card.marelli { border-color: #e85d04; }
+    a.card.marelli:hover { border-color: #f48c06; box-shadow: 0 8px 32px rgba(232,93,4,0.3); }
+
     .card-icon {
       font-size: 3.5rem;
       line-height: 1;
@@ -136,9 +139,10 @@
       text-transform: uppercase;
     }
 
-    .badge-tv   { background: rgba(31,111,235,0.2);  color: #58a6ff; }
-    .badge-pwa  { background: rgba(210,153,34,0.2);  color: #f0b72f; }
-    .badge-admin { background: rgba(72,79,88,0.3);   color: #8b949e; }
+    .badge-tv      { background: rgba(31,111,235,0.2);  color: #58a6ff; }
+    .badge-pwa     { background: rgba(210,153,34,0.2);  color: #f0b72f; }
+    .badge-admin   { background: rgba(72,79,88,0.3);    color: #8b949e; }
+    .badge-report  { background: rgba(232,93,4,0.2);    color: #f48c06; }
   </style>
 </head>
 <body>
@@ -182,6 +186,13 @@
       <div class="card-title">ขึ้นรถจัดส่ง</div>
       <div class="card-desc">เลือก SO ขึ้นรถตามเส้นทาง<br>สำหรับแท็บเล็ต</div>
       <span class="card-badge badge-pwa">PWA</span>
+    </a>
+
+    <a class="card marelli" href="/marelli">
+      <div class="card-icon">📊</div>
+      <div class="card-title">Marelli Report</div>
+      <div class="card-desc">ยอดขาย, สต็อก, margin<br>และ Top ลูกค้า Marelli</div>
+      <span class="card-badge badge-report">REPORT</span>
     </a>
 
     <a class="card admin" href="/admin">

@@ -10,6 +10,7 @@ from services.transport_service import get_transport_pickings
 from services.bill_receipt_service import get_pending_receipts, confirm_receipt
 from services.dispatch_service import get_dispatch_routes, get_route_sos, confirm_dispatch
 from services.app_config import get_config, save_config
+from services.marelli_service import get_marelli_report
 
 router = APIRouter()
 FRONTEND_DIR = Path(__file__).parent.parent.parent / "frontend"
@@ -166,6 +167,21 @@ def api_dispatch_confirm(body: ConfirmDispatchRequest):
         return result
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Marelli Report ───────────────────────────────────────────────────────────
+
+@router.get("/marelli", response_class=HTMLResponse)
+def marelli_report():
+    return (FRONTEND_DIR / "marelli-report" / "index.html").read_text(encoding="utf-8")
+
+
+@router.get("/api/marelli/report")
+def api_marelli_report():
+    try:
+        return {"data": get_marelli_report(), "ok": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
