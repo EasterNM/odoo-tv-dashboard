@@ -45,6 +45,40 @@
     header h1 span { color: var(--accent2); }
     #clock { font-size: 1.6rem; font-weight: bold; font-variant-numeric: tabular-nums; color: var(--muted); }
     #last-updated { font-size: 0.8rem; color: var(--muted); }
+
+    /* ── Date filter ── */
+    .date-filter {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+    .date-filter input[type="date"] {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.85rem;
+      padding: 0.3rem 0.6rem;
+      outline: none;
+      cursor: pointer;
+    }
+    .date-filter input[type="date"]:focus { border-color: var(--accent); }
+    .date-filter button {
+      background: var(--accent);
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 0.3rem 0.8rem;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .date-filter button:hover { opacity: 0.85; }
+
     .back-btn {
       text-decoration: none; color: var(--muted);
       background: var(--surface2); border: 1px solid var(--border);
@@ -250,6 +284,13 @@
 <header>
   <a class="back-btn" href="/">← หน้าหลัก</a>
   <h1>📊 <span>Marelli</span> Report</h1>
+  <div class="date-filter">
+    <span>จาก</span>
+    <input type="date" id="filter-from">
+    <span>ถึง</span>
+    <input type="date" id="filter-to">
+    <button onclick="load()">โหลด</button>
+  </div>
   <div id="last-updated">—</div>
   <div id="clock">—</div>
 </header>
@@ -519,10 +560,30 @@
       'อัปเดต ' + new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
   }
 
+  // ── Default date range (ต้นเดือน → วันนี้) ────────────────────────────
+  function initDates() {
+    const now = new Date();
+    const y   = now.getFullYear();
+    const m   = String(now.getMonth() + 1).padStart(2, '0');
+    const d   = String(now.getDate()).padStart(2, '0');
+    document.getElementById('filter-from').value = `${y}-${m}-01`;
+    document.getElementById('filter-to').value   = `${y}-${m}-${d}`;
+  }
+
   // ── Fetch ──────────────────────────────────────────────────────────────
   async function load() {
+    const dateFrom = document.getElementById('filter-from').value;
+    const dateTo   = document.getElementById('filter-to').value;
+    const params   = new URLSearchParams();
+    if (dateFrom) params.set('date_from', dateFrom);
+    if (dateTo)   params.set('date_to',   dateTo);
+
+    document.getElementById('loading').style.display = 'flex';
+    document.getElementById('main-content').style.display = 'none';
+    document.getElementById('error-box').style.display = 'none';
+
     try {
-      const res = await fetch('/api/marelli/report');
+      const res = await fetch('/api/marelli/report?' + params.toString());
       const json = await res.json();
       if (!json.ok) throw new Error(json.detail || 'API error');
       document.getElementById('loading').style.display = 'none';
@@ -537,6 +598,7 @@
     }
   }
 
+  initDates();
   load();
   // รีเฟรชทุก 5 นาที
   setInterval(load, 5 * 60 * 1000);

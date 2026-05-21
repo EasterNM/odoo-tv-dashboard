@@ -179,9 +179,9 @@ def marelli_report():
 
 
 @router.get("/api/marelli/report")
-def api_marelli_report():
+def api_marelli_report(date_from: str = None, date_to: str = None):
     try:
-        return {"data": get_marelli_report(), "ok": True}
+        return {"data": get_marelli_report(date_from, date_to), "ok": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

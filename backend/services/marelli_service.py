@@ -4,7 +4,7 @@ from services.odoo_client import odoo
 _MARELLI_DOMAIN = [["name", "ilike", "marelli"]]
 
 
-def get_marelli_report() -> dict:
+def get_marelli_report(date_from: str = None, date_to: str = None) -> dict:
     uid = odoo.authenticate()
 
     # 1. Products
@@ -20,20 +20,30 @@ def get_marelli_report() -> dict:
     prod_map = {p["id"]: p for p in products}
 
     # 2. Sale Order Lines
+    sol_domain = [["product_id", "in", prod_ids]]
+    if date_from:
+        sol_domain.append(["create_date", ">=", date_from + " 00:00:00"])
+    if date_to:
+        sol_domain.append(["create_date", "<=", date_to + " 23:59:59"])
     sol = odoo.models.execute_kw(
         odoo.db, uid, odoo.password,
         "sale.order.line", "search_read",
-        [[["product_id", "in", prod_ids]]],
+        [sol_domain],
         {"fields": ["order_id", "product_id", "product_uom_qty",
                     "qty_delivered", "price_unit", "price_subtotal",
                     "state", "create_date"], "limit": 2000, "order": "create_date asc"},
     )
 
     # 3. Purchase Order Lines
+    pol_domain = [["product_id", "in", prod_ids]]
+    if date_from:
+        pol_domain.append(["date_order", ">=", date_from + " 00:00:00"])
+    if date_to:
+        pol_domain.append(["date_order", "<=", date_to + " 23:59:59"])
     pol = odoo.models.execute_kw(
         odoo.db, uid, odoo.password,
         "purchase.order.line", "search_read",
-        [[["product_id", "in", prod_ids]]],
+        [pol_domain],
         {"fields": ["order_id", "product_id", "product_qty",
                     "qty_received", "price_unit", "price_subtotal",
                     "state", "date_order"], "limit": 1000},
