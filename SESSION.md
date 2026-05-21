@@ -4,7 +4,7 @@
 
 ---
 
-## สถานะปัจจุบัน (2026-05-16) — อัปเดตล่าสุด
+## สถานะปัจจุบัน (2026-05-21) — อัปเดตล่าสุด
 
 ### URL ที่ใช้งานได้
 | หน้า | URL |
@@ -270,6 +270,24 @@ pack_qty[so_id] += pack_sign[pid] * qty  # หัก return ออก
 - Progress bar + slide counter
 - เนื้อหาครอบคลุม: ปัญหาก่อนมีระบบ → overview → ทุก feature → Odoo integration → tech stack → ข้อดี → deployment → roadmap
 - Dark theme เหมือน GitHub
+
+### Session 8 (2026-05-21)
+
+#### Marelli Report — เพิ่มตัวกรองช่วงวันที่ (From–To)
+
+**Backend (`marelli_service.py` + `routes/api.py`)**
+- `get_marelli_report(date_from, date_to)` — รับ optional params
+- กรอง SO lines ด้วย `create_date >= date_from` และ `<= date_to 23:59:59`
+- กรอง PO lines ด้วย `date_order` ในช่วงเดียวกัน
+- Endpoint รับ query params: `GET /api/marelli/report?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD`
+
+**Frontend (`frontend/marelli-report/index.html`)**
+- เพิ่ม date picker คู่ใน header (จาก–ถึง) + ปุ่ม "โหลด"
+- Default เปิดหน้าครั้งแรก: ต้นเดือนปัจจุบัน → วันนี้ (initDates)
+- กด "โหลด" หรือเปลี่ยน range แล้วกดโหลดใหม่ได้เลย
+- สต็อก on-hand ยังแสดง real-time (ไม่ขึ้นกับ date filter)
+
+**Commits**: `02939c0` — pushed to main, Render auto-deploy
 
 ---
 
