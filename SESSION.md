@@ -290,11 +290,14 @@ move ไม่มี origin_returned_move_id → forward (depth 0)
 
 **Commits**: `ceaff36`, `55ea247`
 
-#### Feature: แสดง "ยังไม่ได้บิล" ใน DELIVERY column — Store TV
+#### Feature: แสดงสถานะบิลใน PACK + DELIVERY column — Store TV
 
-- `store_service.py`: query `x_studio_boolean_field_62d_1jnoq6a7n` ของ SO ใน delivery column
-- delivery card ที่ `billed = false` → แสดง tag สีเหลือง "ยังไม่ได้บิล" + left border amber
-- `billed = true` → card ปกติ ไม่มี tag
+- `store_service.py`: query `x_studio_boolean_field_62d_1jnoq6a7n` ของ SO ใน pack และ delivery column (1 query รวม)
+- card แสดง tag มุมขวาล่าง:
+  - ยังไม่ได้บิล → tag สีเหลือง + left border amber
+  - ได้บิลแล้ว → tag สีเขียว + `opacity: 0.5` (จางเหมือน Sales TV)
+- PICK column ไม่เปลี่ยน
+- Commits: `9eed964`, `7dbcbe1`
 
 ---
 
