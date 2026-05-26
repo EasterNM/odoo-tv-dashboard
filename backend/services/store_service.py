@@ -59,8 +59,8 @@ def get_store_pickings() -> dict:
     sos: dict[str, dict] = {}
     # map sale_id → {so_name, customer} สำหรับ warning column
     sale_id_map: dict[int, dict] = {}
-    # map so_origin → sale_id สำหรับ delivery billed lookup
-    delivery_sale_map: dict[str, int] = {}
+    # map so_origin → sale_id สำหรับ billed lookup (pack + delivery)
+    bill_sale_map: dict[str, int] = {}
 
     for r in records:
         type_id = r.get("picking_type_id", [0])[0]
@@ -77,8 +77,8 @@ def get_store_pickings() -> dict:
             sid = r["sale_id"][0]
             if sid not in sale_id_map:
                 sale_id_map[sid] = {"so": so, "customer": customer}
-            if ptype == "delivery":
-                delivery_sale_map[so] = sid
+            if ptype in ("pack", "delivery"):
+                bill_sale_map[so] = sid
 
         picking = {
             "name":        r["name"],
@@ -102,19 +102,20 @@ def get_store_pickings() -> dict:
             sos[so]["_oldest"] = cdate
         sos[so]["ops"][ptype].append(picking)
 
-    # ดึงสถานะ "ทำบิลจริงแล้ว" ของ SO ใน delivery column
+    # ดึงสถานะ "ทำบิลจริงแล้ว" ของ SO ใน pack + delivery column
     so_billed: dict[int, bool] = {}
-    if delivery_sale_map:
+    if bill_sale_map:
         so_rows = odoo.search_read(
             "sale.order",
-            [("id", "in", list(set(delivery_sale_map.values())))],
+            [("id", "in", list(set(bill_sale_map.values())))],
             ["id", "x_studio_boolean_field_62d_1jnoq6a7n"],
         )
         so_billed = {s["id"]: bool(s.get("x_studio_boolean_field_62d_1jnoq6a7n")) for s in so_rows}
 
-    for so_name, entry in columns["delivery"].items():
-        sid = delivery_sale_map.get(so_name)
-        entry["billed"] = so_billed.get(sid, False) if sid else False
+    for col in ("pack", "delivery"):
+        for so_name, entry in columns[col].items():
+            sid = bill_sale_map.get(so_name)
+            entry["billed"] = so_billed.get(sid, False) if sid else False
 
     # แปลง columns เป็น list
     result_cols = {}
