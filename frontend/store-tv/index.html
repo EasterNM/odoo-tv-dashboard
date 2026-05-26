@@ -142,8 +142,8 @@
     .warn-pack { color: #d29922; }
     .warn-diff { color: #f85149; font-weight: bold; }
 
-    /* ── billing status (pack + delivery) ── */
-    .so-card.is-billed   { opacity: 0.5; }
+    /* ── printed / billing status ── */
+    .so-card.is-printed  { opacity: 0.45; }
     .so-card.not-billed  { border-left: 3px solid #d29922; }
 
     .card-foot {
@@ -280,15 +280,18 @@
       }
       const showBill = colKey === "pack" || colKey === "delivery";
       body.innerHTML = sos.map(s => {
-        const billed = s.billed;
-        const cardCls = showBill
-          ? (billed ? " is-billed" : " not-billed")
-          : "";
+        const printed = s.printed;
+        const billed  = s.billed;
+
+        let cardCls = printed ? " is-printed" : "";
+        if (showBill && !billed) cardCls += " not-billed";
+
         const billTag = showBill
           ? billed
             ? `<span class="bill-status billed">✓ ได้บิลแล้ว</span>`
             : `<span class="bill-status not-billed">ยังไม่ได้บิล</span>`
           : "";
+
         return `
         <div class="so-card${cardCls}">
           <div class="so-top">

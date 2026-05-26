@@ -9,6 +9,7 @@ from services.app_config import get_config
 
 PICKING_FIELDS = [
     "name", "origin", "partner_id", "state", "picking_type_id", "create_date", "sale_id",
+    "x_studio_boolean_field_651_1jjl2ncdf",   # พิมพ์แล้ว
 ]
 
 STATE_LABEL = {
@@ -84,6 +85,7 @@ def get_store_pickings() -> dict:
             "name":        r["name"],
             "state":       r.get("state", ""),
             "state_label": STATE_LABEL.get(r.get("state", ""), r.get("state", "")),
+            "printed":     bool(r.get("x_studio_boolean_field_651_1jjl2ncdf", False)),
         }
 
         # column view
@@ -117,13 +119,22 @@ def get_store_pickings() -> dict:
             sid = bill_sale_map.get(so_name)
             entry["billed"] = so_billed.get(sid, False) if sid else False
 
-    # แปลง columns เป็น list
+    # แปลง columns เป็น list + คำนวณ printed + sort ตาม priority
+    # priority: 0 = ยังไม่พิมพ์, 1 = พิมพ์แล้วยังไม่ได้บิล, 2 = พิมพ์แล้วได้บิลแล้ว
     result_cols = {}
     for col in COLUMNS:
-        sos_list = sorted(columns[col].values(), key=lambda s: s["so"], reverse=True)
-        for row in sos_list:
-            row["count"] = len(row["pickings"])
-        result_cols[col] = sos_list
+        for row in columns[col].values():
+            row["count"]   = len(row["pickings"])
+            row["printed"] = all(p["printed"] for p in row["pickings"])
+
+        def _priority(row):
+            if not row["printed"]:
+                return (0, row["so"])
+            if not row.get("billed", False):
+                return (1, row["so"])
+            return (2, row["so"])
+
+        result_cols[col] = sorted(columns[col].values(), key=_priority)
 
     # SO cross-column เรียงตามเวลาค้าง
     now = datetime.now(timezone.utc)

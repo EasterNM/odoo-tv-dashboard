@@ -112,6 +112,11 @@ odoo-tv-dashboard/
 | `x_state` | selection | สถานะ: draft / confirmed |
 | `x_so_ids` | many2many → sale.order | รายการ SO ในรอบนี้ |
 
+### stock.picking (custom fields)
+| Field | Type | Label |
+|-------|------|-------|
+| `x_studio_boolean_field_651_1jjl2ncdf` | boolean | พิมพ์แล้ว |
+
 ### Picking Type IDs
 | ID | ชื่อ | ใช้ใน |
 |----|------|-------|
