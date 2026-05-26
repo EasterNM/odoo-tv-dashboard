@@ -66,31 +66,55 @@ def _get_problem_so_ids(order_ids: list[int]) -> dict[int, dict]:
         limit=10000,
     )
 
-    # Classify each picking that has origin_returned_move_id:
-    # - If the referenced move was itself a return ("การส่งคืนของ"/"Return of" in name)
-    #   → this picking is a "return of return" = forward → forward_by_move
-    # - Otherwise the referenced move was a forward → this picking IS a return → return_by_move
-    # This handles chains like: pack → return-pack → re-pack (S19801 case)
-    forward_by_move: set[int] = set()
-    return_by_move:  set[int] = set()
+    # Determine direction of each move by traversing the origin_returned_move_id chain.
+    # Direction flips at each step: forward → return → forward → ...
+    # Moves with no origin_returned_move_id are original (forward).
+    # We iterate until stable so any chain depth is handled correctly.
+    move_info = {m["id"]: m for m in moves}
+    move_is_return: dict[int, bool] = {}
+
     for m in moves:
-        ormid = m.get("origin_returned_move_id")
-        if not ormid:
+        if not m.get("origin_returned_move_id"):
+            move_is_return[m["id"]] = False  # original → forward
+
+    changed = True
+    while changed:
+        changed = False
+        for m in moves:
+            if m["id"] in move_is_return:
+                continue
+            ormid = m.get("origin_returned_move_id")
+            if not ormid:
+                continue
+            ref_id = ormid[0] if isinstance(ormid, (list, tuple)) else None
+            if ref_id in move_is_return:
+                move_is_return[m["id"]] = not move_is_return[ref_id]  # flip direction
+                changed = True
+
+    # Moves whose chain goes outside our dataset: fall back to name heuristic
+    for m in moves:
+        if m["id"] in move_is_return:
             continue
-        pid = m["picking_id"][0]
-        ref_name = ormid[1] if isinstance(ormid, (list, tuple)) and len(ormid) > 1 else ""
-        if any(marker in ref_name for marker in _RETURN_MARKERS):
-            forward_by_move.add(pid)   # return-of-return → forward
+        ormid = m.get("origin_returned_move_id")
+        if ormid:
+            ref_name = ormid[1] if isinstance(ormid, (list, tuple)) and len(ormid) > 1 else ""
+            # ref has marker → ref was return → this is forward (not return)
+            move_is_return[m["id"]] = not any(mk in ref_name for mk in _RETURN_MARKERS)
         else:
-            return_by_move.add(pid)    # return-of-forward → genuine return
+            move_is_return[m["id"]] = False
+
+    # Map picking → direction from its first resolved move
+    picking_direction: dict[int, bool] = {}
+    for m in moves:
+        pid = m["picking_id"][0]
+        if pid not in picking_direction:
+            picking_direction[pid] = move_is_return.get(m["id"], False)
 
     def _picking_is_return(p: dict) -> bool:
         pid = p["id"]
-        if pid in forward_by_move:
-            return False   # move-based says forward → trust it over origin text
-        if pid in return_by_move:
-            return True    # move-based says return → trust it
-        return _is_return(p)  # no origin_returned_move_id → fall back to origin text
+        if pid in picking_direction:
+            return picking_direction[pid]
+        return _is_return(p)  # picking has no moves in dataset → text fallback
 
     pick_sign = {p["id"]: -1 if _picking_is_return(p) else 1 for p in pick_pickings}
     pack_sign = {p["id"]: -1 if _picking_is_return(p) else 1 for p in pack_pickings}
