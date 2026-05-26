@@ -295,14 +295,22 @@ move ไม่มี origin_returned_move_id → forward (depth 0)
 
 **Commits**: `ceaff36`, `55ea247`
 
-#### Feature: แสดงสถานะบิลใน PACK + DELIVERY column — Store TV
+#### Feature: พิมพ์แล้ว + สถานะบิล ใน Store TV — ทุก 3 column
 
-- `store_service.py`: query `x_studio_boolean_field_62d_1jnoq6a7n` ของ SO ใน pack และ delivery column (1 query รวม)
-- card แสดง tag มุมขวาล่าง:
-  - ยังไม่ได้บิล → tag สีเหลือง + left border amber
-  - ได้บิลแล้ว → tag สีเขียว + `opacity: 0.5` (จางเหมือน Sales TV)
-- PICK column ไม่เปลี่ยน
-- Commits: `9eed964`, `7dbcbe1`
+**Field ที่ใช้:**
+- `x_studio_boolean_field_651_1jjl2ncdf` (`stock.picking`) — พิมพ์แล้ว
+- `x_studio_boolean_field_62d_1jnoq6a7n` (`sale.order`) — ทำบิลจริงแล้ว (pack + delivery เท่านั้น)
+
+**Sort priority ทุก 3 col:**
+| ลำดับ | เงื่อนไข | หน้าตา |
+|-------|----------|--------|
+| บนสุด | ยังไม่พิมพ์ | เข้ม |
+| กลาง | พิมพ์แล้ว + ยังไม่ได้บิล | จาง + tag เหลือง + border amber (pack/del) |
+| ล่างสุด | พิมพ์แล้ว + ได้บิลแล้ว | จาง + tag เขียว (pack/del) |
+
+- SO group `printed = True` เมื่อ picking ทุกใบในกลุ่มพิมพ์แล้ว
+- PICK column: fade ตาม printed เท่านั้น ไม่มี billing tag
+- Commits: `9eed964`, `7dbcbe1`, `1f13591`
 
 ---
 
