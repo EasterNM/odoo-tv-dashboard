@@ -271,6 +271,33 @@ pack_qty[so_id] += pack_sign[pid] * qty  # หัก return ออก
 - เนื้อหาครอบคลุม: ปัญหาก่อนมีระบบ → overview → ทุก feature → Odoo integration → tech stack → ข้อดี → deployment → roadmap
 - Dark theme เหมือน GitHub
 
+### Session 9 (2026-05-26)
+
+#### Bug Fix: pack_qty ติดลบ / สูงเกิน กรณี return chain ลึกกว่า 1 ชั้น
+
+**สาเหตุ:** Session 5 แก้ return pack ให้หักออก แต่ใช้ name heuristic ("การส่งคืนของ" ใน origin)
+Odoo ตั้งชื่อ move ทุก depth ด้วย prefix เดิม ทำให้ "return of return" (= forward จริงๆ) ถูก classify เป็น return
+- S19801: FG/PACK/06034 เป็น re-pack (depth 2 = forward) แต่ได้ sign=-1 → pack_qty = -4
+- หลัง user คืน 06034 ใน Odoo: FG/PACK/06037 (depth 3 = return) ได้ sign=+1 → pack_qty = 11
+
+**แก้ด้วย iterative chain traversal** (`backend/services/sales_service.py`):
+```
+move ไม่มี origin_returned_move_id → forward (depth 0)
+วนซ้ำ: ถ้า ref เป็น forward → นี่คือ return; ถ้า ref เป็น return → นี่คือ forward
+ใช้จนกว่าจะ stable → handle ได้ทุก depth ไม่จำกัด
+```
+ผล: S19801 pack_qty = 1 = pick_qty ✅ หายออกจาก ⚠ column
+
+**Commits**: `ceaff36`, `55ea247`
+
+#### Feature: แสดง "ยังไม่ได้บิล" ใน DELIVERY column — Store TV
+
+- `store_service.py`: query `x_studio_boolean_field_62d_1jnoq6a7n` ของ SO ใน delivery column
+- delivery card ที่ `billed = false` → แสดง tag สีเหลือง "ยังไม่ได้บิล" + left border amber
+- `billed = true` → card ปกติ ไม่มี tag
+
+---
+
 ### Session 8 (2026-05-21)
 
 #### Marelli Report — เพิ่มตัวกรองช่วงวันที่ (From–To)
@@ -301,6 +328,7 @@ pack_qty[so_id] += pack_sign[pid] * qty  # หัก return ออก
 | เวลาใน chatter เป็น UTC | Odoo เก็บ UTC | เขียน UTC ลง Odoo, แสดง Thai time ใน message body |
 | Form view ไม่แสดง field ใหม่ | Studio ไม่ auto-add field เข้า view | drag field เข้า form view ใน Studio ด้วยตนเอง ✅ แก้แล้ว |
 | Return Pack ไม่หักยอด pack_qty | โค้ดเดิม exclude แทนที่จะ subtract | ใช้ `pack_sign` + `origin_returned_move_id` (แก้แล้ว Session 5) |
+| pack_qty ติดลบ / สูงเกิน (return chain ลึก) | name heuristic ผิดทุก depth — Odoo ใส่ prefix ทุกชั้น | iterative chain traversal ผ่าน `origin_returned_move_id` (แก้แล้ว Session 9) |
 
 ---
 

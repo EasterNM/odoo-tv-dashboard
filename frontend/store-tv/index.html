@@ -142,6 +142,21 @@
     .warn-pack { color: #d29922; }
     .warn-diff { color: #f85149; font-weight: bold; }
 
+    /* ── delivery: ยังไม่ได้บิล ── */
+    .so-card.unbilled {
+      border-left: 3px solid #d29922;
+    }
+    .unbilled-tag {
+      display: inline-block;
+      font-size: 0.68rem;
+      color: #d29922;
+      background: #2a1f00;
+      border: 1px solid #7d5a00;
+      border-radius: 4px;
+      padding: 0.08rem 0.4rem;
+      margin-bottom: 0.1rem;
+    }
+
     main { flex: 1; overflow: hidden; padding: 0; }
 
     /* ── pending-bill badge ── */
@@ -258,12 +273,15 @@
         body.innerHTML = '<p style="color:#555;text-align:center;padding:1rem;">ไม่มีรายการ</p>';
         return;
       }
-      body.innerHTML = sos.map(s => `
-        <div class="so-card">
+      body.innerHTML = sos.map(s => {
+        const unbilled = colKey === "delivery" && s.billed === false;
+        return `
+        <div class="so-card${unbilled ? " unbilled" : ""}">
           <div class="so-top">
             <span class="so-name">${s.so}</span>
             <span class="so-cnt">${s.count} ใบ</span>
           </div>
+          ${unbilled ? '<span class="unbilled-tag">ยังไม่ได้บิล</span>' : ""}
           <div class="so-cust">${s.customer}</div>
           <div class="badges">
             ${s.pickings.map(p => `
@@ -272,7 +290,8 @@
                 <span>${p.state_label}</span>
               </div>`).join("")}
           </div>
-        </div>`).join("");
+        </div>`;
+      }).join("");
     }
 
     function renderSoCol(sos) {
