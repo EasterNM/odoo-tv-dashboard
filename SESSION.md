@@ -4,7 +4,7 @@
 
 ---
 
-## สถานะปัจจุบัน (2026-05-21) — อัปเดตล่าสุด
+## สถานะปัจจุบัน (2026-05-26) — อัปเดตล่าสุด
 
 ### URL ที่ใช้งานได้
 | หน้า | URL |
@@ -311,6 +311,38 @@ move ไม่มี origin_returned_move_id → forward (depth 0)
 - SO group `printed = True` เมื่อ picking ทุกใบในกลุ่มพิมพ์แล้ว
 - PICK column: fade ตาม printed เท่านั้น ไม่มี billing tag
 - Commits: `9eed964`, `7dbcbe1`, `1f13591`
+
+---
+
+### Session 10 (2026-05-26 ต่อ)
+
+#### แสดงเวลาสร้าง SO บนมุมขวาบนของ card (Store TV)
+
+- **เดิม**: มุมขวาบนแสดง "N ใบ" (จำนวน picking)
+- **ใหม่**: มุมขวาบนแสดงเวลา `HH:MM` (UTC+7) ของ picking ที่เก่าสุดในกลุ่ม — ถ้าสร้างเมื่อวานขึ้นไปแสดง `D/M HH:MM`
+- ย้ายจำนวนใบลงมาเป็นบรรทัดใหม่ใต้ชื่อลูกค้า
+- **Backend**: เพิ่ม `_cdate` tracking ต่อ SO group ใน column entries → แปลงเป็น `create_time` ผ่าน `_format_time()` (UTC+7)
+- **Frontend**: ใช้ `.so-time` แทน `.so-cnt` ใน top row + เพิ่ม `.so-cnt` บรรทัดใหม่
+- **Commit**: `3211bb0`
+
+#### Debug S19826 ไม่จาง
+- ตรวจสอบด้วย Chrome DOM dump — พบ `class="so-card is-printed"` ถูกต้อง
+- ตรวจสอบด้วย screenshot — S19826 จางกว่า S19827/S19829 ชัดเจน
+- **สรุป**: feature ทำงานถูกแล้ว ความแตกต่างอาจไม่ชัดถ้าจอ brightness สูง
+
+#### Debug sort bug: billed=True แต่ printed=False ขึ้นบนผิด (S19827)
+- S19827 ใน PACK มี `billed=true, printed=false` → sort priority=0 (บนสุด) แต่แสดง "✓ ได้บิลแล้ว"
+- ลอง fix: เช็ค `billed` ก่อน `printed` → commit `4de83bc`
+- User ขอ revert กลับ logic เดิม → commit `6af0fe8`
+- **สาเหตุจริง**: checkbox "ทำบิลจริงแล้ว" ใน Odoo ถูกติ๊กโดยผู้ใช้ ไม่ใช่ bug ของ code
+
+#### อธิบาย: "ยังไม่ได้บิล" tag vs "badge บิลรอรับ" นับคนละอย่างกัน
+| ตัวนับ | ดูจาก | ความหมาย |
+|--------|--------|-----------|
+| tag เหลือง "ยังไม่ได้บิล" | `ทำบิลจริงแล้ว = False` | SO ที่ยังไม่ได้ออกบิล |
+| badge มุมขวาล่าง | `ทำบิลจริงแล้ว = True` + `รับบิลแล้ว = False` | SO ที่ออกบิลแล้ว แต่ลูกค้ายังไม่รับ |
+
+ทั้งสองวัด workflow คนละ stage → ไม่มีทางตรงกัน ไม่ใช่ bug
 
 ---
 
