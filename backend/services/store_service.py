@@ -133,11 +133,11 @@ def get_store_pickings() -> dict:
             row["create_time"] = _format_time(row.pop("_cdate", ""))
 
         def _priority(row):
-            if row.get("billed", False):
-                return (2, row["so"])   # บิลแล้ว → ล่างสุดเสมอ
             if not row["printed"]:
-                return (0, row["so"])   # ยังไม่พิมพ์ ยังไม่บิล → บนสุด
-            return (1, row["so"])       # พิมพ์แล้ว ยังไม่บิล → กลาง
+                return (0, row["so"])
+            if not row.get("billed", False):
+                return (1, row["so"])
+            return (2, row["so"])
 
         result_cols[col] = sorted(columns[col].values(), key=_priority)
 
