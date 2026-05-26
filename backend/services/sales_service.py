@@ -66,14 +66,34 @@ def _get_problem_so_ids(order_ids: list[int]) -> dict[int, dict]:
         limit=10000,
     )
 
-    # Pickings that contain at least one return move — reliable signal in Odoo 18
-    return_by_move: set[int] = {m["picking_id"][0] for m in moves if m.get("origin_returned_move_id")}
+    # Classify each picking that has origin_returned_move_id:
+    # - If the referenced move was itself a return ("การส่งคืนของ"/"Return of" in name)
+    #   → this picking is a "return of return" = forward → forward_by_move
+    # - Otherwise the referenced move was a forward → this picking IS a return → return_by_move
+    # This handles chains like: pack → return-pack → re-pack (S19801 case)
+    forward_by_move: set[int] = set()
+    return_by_move:  set[int] = set()
+    for m in moves:
+        ormid = m.get("origin_returned_move_id")
+        if not ormid:
+            continue
+        pid = m["picking_id"][0]
+        ref_name = ormid[1] if isinstance(ormid, (list, tuple)) and len(ormid) > 1 else ""
+        if any(marker in ref_name for marker in _RETURN_MARKERS):
+            forward_by_move.add(pid)   # return-of-return → forward
+        else:
+            return_by_move.add(pid)    # return-of-forward → genuine return
 
-    # Merge origin-text detection with move-field detection
-    pick_sign = {p["id"]: -1 if (_is_return(p) or p["id"] in return_by_move) else 1
-                 for p in pick_pickings}
-    pack_sign = {p["id"]: -1 if (_is_return(p) or p["id"] in return_by_move) else 1
-                 for p in pack_pickings}
+    def _picking_is_return(p: dict) -> bool:
+        pid = p["id"]
+        if pid in forward_by_move:
+            return False   # move-based says forward → trust it over origin text
+        if pid in return_by_move:
+            return True    # move-based says return → trust it
+        return _is_return(p)  # no origin_returned_move_id → fall back to origin text
+
+    pick_sign = {p["id"]: -1 if _picking_is_return(p) else 1 for p in pick_pickings}
+    pack_sign = {p["id"]: -1 if _picking_is_return(p) else 1 for p in pack_pickings}
 
     pick_qty: dict[int, float] = {}
     pack_qty: dict[int, float] = {}
