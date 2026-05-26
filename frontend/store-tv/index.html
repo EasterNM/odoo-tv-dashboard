@@ -57,7 +57,8 @@
     }
     .so-top  { display: flex; justify-content: space-between; align-items: center; }
     .so-name { font-weight: bold; color: #58a6ff; font-size: 0.95rem; }
-    .so-cnt  { font-size: 0.78rem; color: #8b949e; }
+    .so-time { font-size: 0.78rem; color: #8b949e; }
+    .so-cnt  { font-size: 0.72rem; color: #8b949e; margin: 0.05rem 0 0.1rem; }
     .so-cust { font-size: 0.78rem; color: #adbac7; margin: 0.12rem 0;
                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
@@ -296,9 +297,10 @@
         <div class="so-card${cardCls}">
           <div class="so-top">
             <span class="so-name">${s.so}</span>
-            <span class="so-cnt">${s.count} ใบ</span>
+            <span class="so-time">${s.create_time || ""}</span>
           </div>
           <div class="so-cust">${s.customer}</div>
+          <div class="so-cnt">${s.count} ใบ</div>
           <div class="badges">
             ${s.pickings.map(p => `
               <div class="badge state-${p.state}" title="${p.name}">

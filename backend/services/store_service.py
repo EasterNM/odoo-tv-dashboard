@@ -2,7 +2,7 @@
 Store TV Service
 5 column: PICK | PACK | DELIVERY | SO รวม | ⚠ ยอดไม่ตรง (Pick ≠ Pack)
 """
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from services.odoo_client import odoo
 from services.sales_service import _get_problem_so_ids
 from services.app_config import get_config
@@ -90,7 +90,11 @@ def get_store_pickings() -> dict:
 
         # column view
         if so not in columns[ptype]:
-            columns[ptype][so] = {"so": so, "customer": customer, "pickings": []}
+            columns[ptype][so] = {"so": so, "customer": customer, "pickings": [], "_cdate": cdate}
+        else:
+            existing = columns[ptype][so]["_cdate"]
+            if cdate and (not existing or cdate < existing):
+                columns[ptype][so]["_cdate"] = cdate
         columns[ptype][so]["pickings"].append(picking)
 
         # SO cross-column view
@@ -124,8 +128,9 @@ def get_store_pickings() -> dict:
     result_cols = {}
     for col in COLUMNS:
         for row in columns[col].values():
-            row["count"]   = len(row["pickings"])
-            row["printed"] = all(p["printed"] for p in row["pickings"])
+            row["count"]       = len(row["pickings"])
+            row["printed"]     = all(p["printed"] for p in row["pickings"])
+            row["create_time"] = _format_time(row.pop("_cdate", ""))
 
         def _priority(row):
             if not row["printed"]:
@@ -179,6 +184,21 @@ def _elapsed_minutes(date_str: str, now: datetime) -> int:
         return max(0, int((now - dt).total_seconds() / 60))
     except Exception:
         return 0
+
+
+def _format_time(date_str: str) -> str:
+    """แปลง create_date (UTC) เป็นเวลาไทย (UTC+7) แสดงเป็น HH:MM หรือ D/M HH:MM"""
+    if not date_str:
+        return ""
+    try:
+        dt_utc = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+        dt_th  = dt_utc + timedelta(hours=7)
+        today  = (datetime.now(timezone.utc) + timedelta(hours=7)).date()
+        if dt_th.date() == today:
+            return dt_th.strftime("%H:%M")
+        return dt_th.strftime("%-d/%-m %H:%M")
+    except Exception:
+        return ""
 
 
 def _format_elapsed(minutes: int) -> str:
