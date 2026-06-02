@@ -62,20 +62,34 @@ def _get_problem_so_ids(order_ids: list[int]) -> dict[int, dict]:
     moves = odoo.search_read(
         "stock.move",
         [("picking_id", "in", picking_ids), ("state", "=", "done")],
-        ["picking_id", "quantity", "origin_returned_move_id"],
+        ["picking_id", "quantity", "origin_returned_move_id", "location_id"],
         limit=10000,
     )
+
+    # Packing zone location IDs = ทุก location_id ที่ PACK moves ใช้เป็น source
+    # (dynamic: ไม่ hardcode location ID)
+    pack_picking_ids = {p["id"] for p in pack_pickings}
+    packing_zone_ids: set[int] = set()
+    for m in moves:
+        if m["picking_id"][0] in pack_picking_ids and m.get("location_id"):
+            packing_zone_ids.add(m["location_id"][0])
 
     # Determine direction of each move by traversing the origin_returned_move_id chain.
     # Direction flips at each step: forward → return → forward → ...
     # Moves with no origin_returned_move_id are original (forward).
     # We iterate until stable so any chain depth is handled correctly.
-    move_info = {m["id"]: m for m in moves}
     move_is_return: dict[int, bool] = {}
 
     for m in moves:
         if not m.get("origin_returned_move_id"):
-            move_is_return[m["id"]] = False  # original → forward
+            # PICK move ที่ออกจาก packing zone (เช่น ยกเลิก pack แล้วเอาของออก) = reverse
+            pid = m["picking_id"][0]
+            if pid in pack_picking_ids:
+                move_is_return[m["id"]] = False
+            elif m.get("location_id") and m["location_id"][0] in packing_zone_ids:
+                move_is_return[m["id"]] = True   # PICK จาก packing zone → cleanup/reverse
+            else:
+                move_is_return[m["id"]] = False  # original forward pick
 
     changed = True
     while changed:
