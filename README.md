@@ -241,6 +241,24 @@ docker compose up -d --build
 
 เปิดที่ http://localhost:8000
 
+### Auto-update บน CasaOS / Linux
+
+ระบบสามารถตรวจ branch `main` ทุก 5 นาทีและ deploy commit ใหม่อัตโนมัติ:
+
+```bash
+mkdir -p ~/apps
+git clone https://github.com/EasterNM/odoo-tv-dashboard.git ~/apps/odoo-tv-dashboard
+cd ~/apps/odoo-tv-dashboard
+cp backend/config/.env.example backend/config/.env
+# กำหนด ODOO_* และ ADMIN_PASSWORD ในไฟล์ .env ก่อนติดตั้ง
+./deploy/install-auto-update.sh
+./deploy/auto-update.sh
+```
+
+ตัว updater จะไม่เขียนทับ tracked files ที่ถูกแก้บน server, ใช้ lock ป้องกันงานซ้อน,
+ตรวจ `/health` หลัง deploy และคืน container image ก่อนหน้าหากเวอร์ชันใหม่ไม่พร้อมใช้งาน
+commit ที่ deploy ไม่ผ่านจะไม่ถูกลองซ้ำจนกว่าจะมี commit ใหม่
+
 ---
 
 ## Deploy บน Render.com
