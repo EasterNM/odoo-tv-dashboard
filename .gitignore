@@ -2,3 +2,6 @@ backend/config/.env
 __pycache__/
 *.py[cod]
 .env
+admin-password.txt
+auto-update.log
+.last-failed-deploy
