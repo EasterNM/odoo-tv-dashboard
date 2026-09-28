@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Store Zone TV - Pick (แยกโซน) / Pack / Delivery</title>
+  <link rel="stylesheet" href="/static/tv.css">
+  <style>
+    body { overflow: hidden; }
+
+    /* ── 5-column layout ── */
+    .four-col {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 0.6rem;
+      height: 100%;
+      padding: 0.6rem 0.8rem;
+    }
+
+    /* ── column ── */
+    .col {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .col-header {
+      padding: 0.5rem 0.8rem;
+      border-radius: 10px 10px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .col-header.pick     { background: #0969da; }
+    .col-header.pack     { background: #7d5a00; }
+    .col-header.delivery { background: #1a5e2a; }
+    .col-header.so-col   { background: #5a1e8c; }
+    .col-header.warn-col { background: #7d1a1a; }
+
+    .col-title { font-weight: bold; font-size: 1.1rem; letter-spacing: 0.05em; }
+    .col-count { font-size: 0.82rem; background: rgba(0,0,0,0.3);
+                 padding: 0.1rem 0.45rem; border-radius: 10px; }
+
+    .col-body  { overflow-y: auto; flex: 1; padding: 0.4rem;
+                 display: flex; flex-direction: column; gap: 0.35rem; }
+
+    /* ── SO card (columns 1-3) ── */
+    .so-card {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 7px;
+      padding: 0.45rem 0.6rem;
+    }
+    .so-top  { display: flex; justify-content: space-between; align-items: center; }
+    .so-name { font-weight: bold; color: #58a6ff; font-size: 0.95rem; }
+    .so-meta { display: flex; align-items: center; gap: 0.4rem; }
+    .so-time { font-size: 0.78rem; color: #8b949e; }
+    .so-cnt  { font-size: 0.72rem; color: #8b949e; margin: 0.05rem 0 0.1rem; }
+    .so-cust { font-size: 0.78rem; color: #adbac7; margin: 0.12rem 0;
+               white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* Zone status pill on top right */
+    .zone-progress-pill {
+      font-size: 0.68rem;
+      font-weight: bold;
+      padding: 0.06rem 0.35rem;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+    .zone-progress-pill.all-done {
+      background: #0d2818;
+      color: #3fb950;
+      border: 1px solid #238636;
+    }
+    .zone-progress-pill.in-progress {
+      background: #2a1f00;
+      color: #e3b341;
+      border: 1px solid #d29922;
+    }
+
+    /* ── Zone chips container in PICK card ── */
+    .zone-badges {
+      display: flex;
+      gap: 0.3rem;
+      flex-wrap: wrap;
+      margin: 0.35rem 0 0.25rem;
+    }
+    .zone-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: 5px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+    }
+    .zone-chip .zc-code {
+      padding: 0.04rem 0.28rem;
+      border-radius: 3px;
+      background: rgba(255,255,255,0.12);
+      font-weight: 800;
+      font-size: 0.7rem;
+    }
+    .zone-chip .zc-val {
+      font-variant-numeric: tabular-nums;
+      font-size: 0.7rem;
+    }
+
+    /* Status colors for Zone chips */
+    .zone-chip.status-done {
+      background: #0d2818;
+      border: 1px solid #238636;
+      color: #3fb950;
+    }
+    .zone-chip.status-partial {
+      background: #2a1f00;
+      border: 1px solid #d29922;
+      color: #e3b341;
+    }
+    .zone-chip.status-waiting {
+      background: #211824;
+      border: 1px solid #a371f7;
+      color: #d2a8ff;
+    }
+
+    .badges { display: flex; gap: 0.2rem; flex-wrap: wrap; margin-top: 0.25rem; }
+    .badge  {
+      font-size: 0.7rem; padding: 0.12rem 0.4rem; border-radius: 4px;
+      border: 1px solid #444; display: flex; flex-direction: column;
+      align-items: center; min-width: 3rem;
+    }
+    .badge b    { font-size: 0.68rem; }
+    .badge span { font-size: 0.63rem; margin-top: 1px; }
+
+    .col.pick     .badge { border-color: #388bfd; background: #0d2340; }
+    .col.pack     .badge { border-color: #d29922; background: #2a1f00; }
+    .col.delivery .badge { border-color: #238636; background: #0d2818; }
+
+    /* ── SO cross-column card (column 4) ── */
+    .so-cross {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 7px;
+      padding: 0.45rem 0.6rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+    .cross-top {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .cross-name  { font-weight: bold; color: #c084fc; font-size: 0.95rem; }
+    .cross-cust  { font-size: 0.75rem; color: #adbac7;
+                   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* elapsed */
+    .elapsed {
+      font-size: 0.72rem; font-weight: bold;
+      padding: 0.08rem 0.4rem; border-radius: 8px; white-space: nowrap;
+    }
+    .elapsed.ok   { background: #0d2818; color: #3fb950; border: 1px solid #238636; }
+    .elapsed.warn { background: #2a1f00; color: #d29922; border: 1px solid #d29922; }
+    .elapsed.late { background: #300;    color: #f85149; border: 1px solid #f85149; }
+
+    /* op badges ใน column 4 */
+    .op-badges { display: flex; gap: 0.2rem; flex-wrap: wrap; }
+    .op-badge  {
+      display: flex; align-items: center; gap: 0.25rem;
+      padding: 0.12rem 0.4rem; border-radius: 4px;
+      border: 1px solid #444; font-size: 0.7rem; flex: 1; min-width: 0;
+    }
+    .op-label { font-weight: bold; font-size: 0.65rem;
+                padding: 0.02rem 0.25rem; border-radius: 3px; flex-shrink: 0; }
+    .op-info  { overflow: hidden; }
+    .op-doc   { font-size: 0.65rem; color: #8b949e;
+                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .op-st    { font-size: 0.68rem; }
+    .op-zone-tag {
+      font-size: 0.62rem;
+      background: rgba(255,255,255,0.1);
+      padding: 0.02rem 0.25rem;
+      border-radius: 3px;
+      margin-top: 1px;
+      color: #e3b341;
+    }
+    .op-zone-tag.all-done {
+      color: #3fb950;
+    }
+
+    .op-badge.pick     { background: #0d2340; border-color: #388bfd; }
+    .op-badge.pick     .op-label { background: #0969da; color: #fff; }
+    .op-badge.pack     { background: #2a1f00; border-color: #d29922; }
+    .op-badge.pack     .op-label { background: #7d5a00; color: #fff; }
+    .op-badge.delivery { background: #0d2818; border-color: #238636; }
+    .op-badge.delivery .op-label { background: #1a5e2a; color: #fff; }
+
+    .state-assigned  .op-st { color: #3fb950; }
+    .state-confirmed .op-st { color: #d29922; }
+    .state-waiting   .op-st { color: #f85149; }
+    .state-draft     .op-st { color: #8b949e; }
+
+    /* ── warning card (column 5) ── */
+    .warn-card {
+      background: #1a0a0a;
+      border: 1px solid #7d1a1a;
+      border-left: 3px solid #f85149;
+      border-radius: 7px;
+      padding: 0.45rem 0.6rem;
+    }
+    .warn-so   { font-weight: bold; color: #f85149; font-size: 0.95rem; }
+    .warn-cust { font-size: 0.75rem; color: #adbac7;
+                 white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0.1rem 0; }
+    .warn-qty  { display: flex; gap: 0.4rem; font-size: 0.75rem; margin-top: 0.2rem; flex-wrap: wrap; }
+    .warn-pick { color: #388bfd; }
+    .warn-pack { color: #d29922; }
+    .warn-diff { color: #f85149; font-weight: bold; }
+
+    /* ── printed / billing status ── */
+    .so-card.is-printed  { opacity: 0.45; }
+    .so-card.not-billed  { border-left: 3px solid #d29922; }
+
+    .card-foot {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 0.25rem;
+    }
+    .bill-status {
+      font-size: 0.68rem; font-weight: bold;
+      padding: 0.08rem 0.45rem; border-radius: 4px; white-space: nowrap;
+    }
+    .bill-status.billed {
+      color: #3fb950; background: #0d2818; border: 1px solid #238636;
+    }
+    .bill-status.not-billed {
+      color: #d29922; background: #2a1f00; border: 1px solid #7d5a00;
+    }
+
+    main { flex: 1; overflow: hidden; padding: 0; }
+
+    /* ── pending-bill badge ── */
+    #bill-badge {
+      position: fixed;
+      bottom: 1.2rem;
+      right: 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      padding: 1.1rem 1.95rem;
+      border-radius: 24px;
+      background: #161b22;
+      border: 1.5px solid #d29922;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.55);
+      z-index: 999;
+      cursor: default;
+      transition: border-color 0.3s;
+    }
+    #bill-badge.has-bills {
+      border-color: #f85149;
+      animation: pulse-border 2s infinite;
+    }
+    @keyframes pulse-border {
+      0%, 100% { box-shadow: 0 4px 18px rgba(248,81,73,0.25); }
+      50%       { box-shadow: 0 4px 28px rgba(248,81,73,0.65); }
+    }
+    #bill-badge .bb-icon  { font-size: 3rem; line-height: 1; }
+    #bill-badge .bb-body  { display: flex; flex-direction: column; line-height: 1.3; }
+    #bill-badge .bb-label { font-size: 1.35rem; color: #8b949e; }
+    #bill-badge .bb-count { font-size: 2.55rem; font-weight: bold; color: #e6edf3; }
+    #bill-badge.has-bills .bb-count { color: #f85149; }
+  </style>
+</head>
+<body class="store">
+  <header>
+    <h1>Store TV (จัดสินค้าแยกโซน)</h1>
+    <div id="summary" style="font-size:0.9rem;color:#8b949e;"></div>
+    <div id="clock"></div>
+    <div id="last-updated"></div>
+  </header>
+
+  <!-- pending-bill badge -->
+  <div id="bill-badge">
+    <span class="bb-icon">🧾</span>
+    <div class="bb-body">
+      <span class="bb-label">บิลรอรับ</span>
+      <span class="bb-count" id="bill-count">—</span>
+    </div>
+  </div>
+
+  <main>
+    <div class="four-col">
+      <!-- column 1: PICK (แยกโซน) -->
+      <div class="col pick">
+        <div class="col-header pick">
+          <span class="col-title">PICK (แยกโซน)</span>
+          <span class="col-count" id="cnt-pick">0 SO</span>
+        </div>
+        <div class="col-body" id="body-pick"></div>
+      </div>
+
+      <!-- column 2: PACK -->
+      <div class="col pack">
+        <div class="col-header pack">
+          <span class="col-title">PACK</span>
+          <span class="col-count" id="cnt-pack">0 SO</span>
+        </div>
+        <div class="col-body" id="body-pack"></div>
+      </div>
+
+      <!-- column 3: DELIVERY -->
+      <div class="col delivery">
+        <div class="col-header delivery">
+          <span class="col-title">DELIVERY</span>
+          <span class="col-count" id="cnt-delivery">0 SO</span>
+        </div>
+        <div class="col-body" id="body-delivery"></div>
+      </div>
+
+      <!-- column 4: SO รวม -->
+      <div class="col so-col">
+        <div class="col-header so-col">
+          <span class="col-title">รวม SO</span>
+          <span class="col-count" id="cnt-sos">0 SO</span>
+        </div>
+        <div class="col-body" id="body-sos"></div>
+      </div>
+
+      <!-- column 5: ยอดไม่ตรง -->
+      <div class="col warn-col">
+        <div class="col-header warn-col">
+          <span class="col-title">⚠ Pick ≠ Pack</span>
+          <span class="col-count" id="cnt-warn">0 SO</span>
+        </div>
+        <div class="col-body" id="body-warn"></div>
+      </div>
+    </div>
+  </main>
+
+  <script src="/static/tv.js"></script>
+  <script>
+    const OP_LABEL = { pick: "PICK", pack: "PACK", delivery: "DEL" };
+
+    function elapsedClass(m) {
+      return m < 240 ? "ok" : m < 480 ? "warn" : "late";
+    }
+
+    function renderZoneBadges(zones) {
+      if (!zones || !zones.length) return "";
+      return `<div class="zone-badges">` + zones.map(z => {
+        const statusCls = `status-${z.status || "waiting"}`;
+        const icon = z.status === "done" ? "✓" : "⏳";
+        return `
+          <div class="zone-chip ${statusCls}" title="${z.zone_name}: ${z.done}/${z.demanded} ชิ้น">
+            <span class="zc-code">${z.zone_code}</span>
+            <span class="zc-val">${z.done}/${z.demanded} ${icon}</span>
+          </div>`;
+      }).join("") + `</div>`;
+    }
+
+    function renderSimpleCol(colKey, sos) {
+      const body = document.getElementById("body-" + colKey);
+      const cnt  = document.getElementById("cnt-"  + colKey);
+      cnt.textContent = sos.length + " SO";
+      if (!sos.length) {
+        body.innerHTML = '<p style="color:#555;text-align:center;padding:1rem;">ไม่มีรายการ</p>';
+        return;
+      }
+      const showBill = colKey === "pack" || colKey === "delivery";
+      const isPick = colKey === "pick";
+
+      body.innerHTML = sos.map(s => {
+        const printed = s.printed;
+        const billed  = s.billed;
+
+        let cardCls = printed ? " is-printed" : "";
+        if (showBill && !billed) cardCls += " not-billed";
+
+        const billTag = showBill
+          ? billed
+            ? `<span class="bill-status billed">✓ ได้บิลแล้ว</span>`
+            : `<span class="bill-status not-billed">ยังไม่ได้บิล</span>`
+          : "";
+
+        // Zone summary tag for pick column header
+        let zonePill = "";
+        if (isPick && s.zone_summary && s.zone_summary.total_zones > 0) {
+          const zs = s.zone_summary;
+          const pillCls = zs.all_done ? "all-done" : "in-progress";
+          const pillText = zs.all_done ? `✓ ครบ ${zs.total_zones} โซน` : zs.label;
+          zonePill = `<span class="zone-progress-pill ${pillCls}">${pillText}</span>`;
+        }
+
+        return `
+        <div class="so-card${cardCls}">
+          <div class="so-top">
+            <span class="so-name">${s.so}</span>
+            <div class="so-meta">
+              ${zonePill}
+              <span class="so-time">${s.create_time || ""}</span>
+            </div>
+          </div>
+          <div class="so-cust">${s.customer}</div>
+          <div class="so-cnt">${s.count} ใบ</div>
+          ${isPick ? renderZoneBadges(s.zones) : ""}
+          <div class="badges">
+            ${s.pickings.map(p => `
+              <div class="badge state-${p.state}" title="${p.name}">
+                <b>${p.name}</b>
+                <span>${p.state_label}</span>
+              </div>`).join("")}
+          </div>
+          ${showBill ? `<div class="card-foot">${billTag}</div>` : ""}
+        </div>`;
+      }).join("");
+    }
+
+    function renderSoCol(sos) {
+      const body = document.getElementById("body-sos");
+      const cnt  = document.getElementById("cnt-sos");
+      cnt.textContent = sos.length + " SO";
+      if (!sos.length) {
+        body.innerHTML = '<p style="color:#555;text-align:center;padding:1rem;">ไม่มีรายการ</p>';
+        return;
+      }
+      body.innerHTML = sos.map(s => {
+        const opBadges = ["pick","pack","delivery"].flatMap(type =>
+          (s.ops[type] || []).map(p => {
+            let zoneTag = "";
+            if (type === "pick" && s.zone_summary && s.zone_summary.total_zones > 0) {
+              const zs = s.zone_summary;
+              const tagCls = zs.all_done ? "all-done" : "";
+              zoneTag = `<div class="op-zone-tag ${tagCls}">${zs.all_done ? "✓ ครบโซน" : zs.label}</div>`;
+            }
+            return `
+              <div class="op-badge ${type} state-${p.state}">
+                <span class="op-label">${OP_LABEL[type]}</span>
+                <div class="op-info">
+                  <div class="op-doc">${p.name}</div>
+                  <div class="op-st">${p.state_label}</div>
+                  ${zoneTag}
+                </div>
+              </div>`;
+          })
+        ).join("");
+        return `
+          <div class="so-cross">
+            <div class="cross-top">
+              <span class="cross-name">${s.so}</span>
+              <span class="elapsed ${elapsedClass(s.elapsed_minutes)}">${s.elapsed_label}</span>
+            </div>
+            <div class="cross-cust">${s.customer}</div>
+            <div class="op-badges">${opBadges}</div>
+          </div>`;
+      }).join("");
+    }
+
+    function renderWarnCol(warnings) {
+      const body = document.getElementById("body-warn");
+      const cnt  = document.getElementById("cnt-warn");
+      cnt.textContent = warnings.length + " SO";
+      if (!warnings.length) {
+        body.innerHTML = '<p style="color:#555;text-align:center;padding:1rem;">ไม่มีรายการ</p>';
+        return;
+      }
+      body.innerHTML = warnings.map(w => `
+        <div class="warn-card">
+          <div class="warn-so">${w.so}</div>
+          <div class="warn-cust">${w.customer}</div>
+          <div class="warn-qty">
+            <span class="warn-pick">PICK: ${w.pick_qty}</span>
+            <span class="warn-pack">PACK: ${w.pack_qty}</span>
+            <span class="warn-diff">ต่าง: ${w.diff}</span>
+          </div>
+        </div>`).join("");
+    }
+
+    async function fetchData() {
+      try {
+        const res  = await fetch("/api/store-zone/pickings");
+        const json = await res.json();
+        const data = json.data;
+
+        const total = (data.sos || []).length;
+        const warnCount = (data.warnings || []).length;
+        document.getElementById("summary").textContent =
+          `${total} SO | PICK ${(data.pick||[]).length} | PACK ${(data.pack||[]).length} | DEL ${(data.delivery||[]).length}${warnCount ? ` | ⚠ ${warnCount}` : ""}`;
+
+        renderSimpleCol("pick",     data.pick     || []);
+        renderSimpleCol("pack",     data.pack     || []);
+        renderSimpleCol("delivery", data.delivery || []);
+        renderSoCol(data.sos || []);
+        renderWarnCol(data.warnings || []);
+
+        document.getElementById("last-updated").textContent =
+          "อัปเดต: " + new Date().toLocaleTimeString("th-TH");
+      } catch(e) { console.error(e); }
+    }
+
+    async function fetchPendingBills() {
+      try {
+        const res  = await fetch("/api/mobile/pending-receipts");
+        const json = await res.json();
+        const count = (json.data || []).length;
+        const badge = document.getElementById("bill-badge");
+        const countEl = document.getElementById("bill-count");
+        countEl.textContent = count + " บิล";
+        badge.classList.toggle("has-bills", count > 0);
+      } catch(e) { console.error(e); }
+    }
+
+    startClock();
+    fetchData();
+    fetchPendingBills();
+    setInterval(fetchData, 10000);
+    setInterval(fetchPendingBills, 30000);
+  </script>
+</body>
+</html>

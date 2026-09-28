@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from pathlib import Path
 from services.sales_service import get_ready_to_invoice
 from services.store_service import get_store_pickings
+from services.store_zone_service import get_store_zone_pickings
 from services.transport_service import get_transport_pickings
 from services.bill_receipt_service import get_pending_receipts, confirm_receipt
 from services.dispatch_service import get_dispatch_routes, get_route_sos, confirm_dispatch
@@ -72,7 +73,20 @@ def sales_tv():
 
 @router.get("/store", response_class=HTMLResponse)
 def store_tv():
-    return (FRONTEND_DIR / "store-tv" / "index.html").read_text()
+    return (FRONTEND_DIR / "store-tv" / "index.html").read_text(encoding="utf-8")
+
+
+@router.get("/store-zone", response_class=HTMLResponse)
+def store_zone_tv():
+    return (FRONTEND_DIR / "store-zone-tv" / "index.html").read_text(encoding="utf-8")
+
+
+@router.get("/api/store-zone/pickings")
+def store_zone_pickings():
+    try:
+        return {"data": get_store_zone_pickings()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/api/transport/pickings")

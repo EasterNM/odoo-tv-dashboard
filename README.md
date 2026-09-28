@@ -12,6 +12,7 @@
 | **Home** | `/` | ทุกอุปกรณ์ | — |
 | **Sales TV** | `/sales` | จอ TV | 10 วิ |
 | **Store TV** | `/store` | จอ TV | 10 วิ |
+| **Store Zone TV** | `/store-zone` | จอ TV | 10 วิ |
 | **Transport TV** | `/transport` | จอ TV | 10 วิ |
 | **Mobile รับบิล** | `/mobile/receive-bill` | มือถือ (PWA) | manual |
 | **Tablet ขึ้นรถ** | `/tablet/dispatch` | tablet (PWA) | manual |
@@ -306,6 +307,8 @@ commit ที่ deploy ไม่ผ่านจะไม่ถูกลอง�
 | GET | `/docs` | FastAPI auto-generated docs |
 | GET | `/api/sales/ready-to-invoice` | ดึง SO พร้อมออกบิล |
 | GET | `/api/store/pickings` | ดึงงานคลัง |
+| GET | `/store-zone` | Store Zone TV page |
+| GET | `/api/store-zone/pickings` | ดึงงานคลังพร้อมสถานะรายโซน (Zone Picking) |
 | GET | `/api/transport/pickings` | ดึง delivery orders |
 | GET | `/api/mobile/pending-receipts` | ดึง SO รอรับบิล |
 | POST | `/api/mobile/confirm-receipt` | ยืนยันรับบิล (สร้าง Invoice Transfer) |
