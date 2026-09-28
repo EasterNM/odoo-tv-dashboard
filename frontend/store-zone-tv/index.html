@@ -272,6 +272,94 @@
     #bill-badge .bb-label { font-size: 1.35rem; color: #8b949e; }
     #bill-badge .bb-count { font-size: 2.55rem; font-weight: bold; color: #e6edf3; }
     #bill-badge.has-bills .bb-count { color: #f85149; }
+
+    /* ── Action Button: Send to Pack ── */
+    .card-actions {
+      margin-top: 0.35rem;
+      display: flex;
+    }
+    .btn-pack-action {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      width: 100%;
+      padding: 0.38rem 0.6rem;
+      font-size: 0.8rem;
+      font-weight: 700;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+      outline: none;
+    }
+    .btn-pack-action.ready {
+      background: linear-gradient(180deg, #2ea043 0%, #238636 100%);
+      color: #ffffff;
+      border-color: #3fb950;
+      box-shadow: 0 2px 6px rgba(46, 160, 67, 0.4);
+    }
+    .btn-pack-action.ready:hover {
+      background: linear-gradient(180deg, #3fb950 0%, #2ea043 100%);
+      box-shadow: 0 2px 10px rgba(63, 185, 80, 0.6);
+      transform: translateY(-1px);
+    }
+    .btn-pack-action.ready:active {
+      transform: translateY(0);
+    }
+    .btn-pack-action.partial {
+      background: #21262d;
+      color: #8b949e;
+      border-color: #30363d;
+    }
+    .btn-pack-action.partial:hover {
+      background: #30363d;
+      color: #c9d1d9;
+    }
+    .btn-pack-action:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    /* ── Toast Container ── */
+    #toast-box {
+      position: fixed;
+      top: 1rem;
+      right: 1.2rem;
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      pointer-events: none;
+    }
+    .toast-msg {
+      background: #161b22;
+      border: 1px solid #30363d;
+      color: #e6edf3;
+      padding: 0.6rem 1rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+      pointer-events: auto;
+      animation: fadeInSlide 0.25s ease-out;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .toast-msg.success {
+      border-color: #238636;
+      border-left: 4px solid #3fb950;
+    }
+    .toast-msg.error {
+      border-color: #f85149;
+      border-left: 4px solid #f85149;
+    }
+    @keyframes fadeInSlide {
+      from { opacity: 0; transform: translateY(-10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
   </style>
 </head>
 <body class="store">
@@ -394,6 +482,24 @@
           zonePill = `<span class="zone-progress-pill ${pillCls}">${pillText}</span>`;
         }
 
+        let pickActionBtn = "";
+        if (isPick) {
+          const pickingIds = s.picking_ids || s.pickings.map(p => p.id);
+          const zs = s.zone_summary || {};
+          const isAllDone = !!zs.all_done;
+          const btnClass = isAllDone ? "ready" : "partial";
+          const btnText = isAllDone ? "✓ ยืนยันส่งไปแพ็ค" : "ยืนยันส่งไปแพ็ค";
+          const icon = isAllDone ? "🚀" : "📦";
+          const pIdsJson = JSON.stringify(pickingIds).replace(/"/g, '&quot;');
+          pickActionBtn = `
+            <div class="card-actions">
+              <button class="btn-pack-action ${btnClass}" 
+                      onclick="sendToPack(event, '${s.so}', ${pIdsJson}, ${isAllDone})">
+                <span>${icon}</span> <span>${btnText}</span>
+              </button>
+            </div>`;
+        }
+
         return `
         <div class="so-card${cardCls}">
           <div class="so-top">
@@ -413,6 +519,7 @@
                 <span>${p.state_label}</span>
               </div>`).join("")}
           </div>
+          ${pickActionBtn}
           ${showBill ? `<div class="card-foot">${billTag}</div>` : ""}
         </div>`;
       }).join("");
@@ -510,6 +617,62 @@
         countEl.textContent = count + " บิล";
         badge.classList.toggle("has-bills", count > 0);
       } catch(e) { console.error(e); }
+    }
+
+    function showToast(text, type = "info") {
+      let box = document.getElementById("toast-box");
+      if (!box) {
+        box = document.createElement("div");
+        box.id = "toast-box";
+        document.body.appendChild(box);
+      }
+      const toast = document.createElement("div");
+      toast.className = `toast-msg ${type}`;
+      toast.innerHTML = `<span>${type === 'success' ? '✓' : '⚠'}</span> <span>${text}</span>`;
+      box.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = "0";
+        toast.style.transform = "translateY(-10px)";
+        toast.style.transition = "all 0.3s ease";
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    async function sendToPack(event, soName, pickingIds, isAllDone) {
+      if (event) event.stopPropagation();
+      if (!pickingIds || !pickingIds.length) {
+        showToast("ไม่พบรหัสใบจัดสำหรับออเดอร์ " + soName, "error");
+        return;
+      }
+
+      if (!isAllDone) {
+        const ok = confirm(`⚠ คำเตือน: ออเดอร์ ${soName} ยังจัดไม่ครบทุกโซน\nต้องการจบงานใบจัดและส่งต่อไปยังแผนก PACK ทันทีหรือไม่?`);
+        if (!ok) return;
+      }
+
+      const btn = event.currentTarget;
+      const origHtml = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = `<span>⏳</span> <span>กำลังส่งไปแพ็ค...</span>`;
+
+      try {
+        const res = await fetch("/api/store-zone/validate-pick", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ picking_ids: pickingIds, so_name: soName }),
+        });
+        const json = await res.json();
+        if (!res.ok || !json.ok) {
+          throw new Error(json.detail || json.error || "เกิดข้อผิดพลาดในการยืนยัน");
+        }
+
+        showToast(`ส่งออเดอร์ ${soName} ไปแผนกแพ็คเรียบร้อยแล้ว`, "success");
+        await fetchData();
+      } catch (err) {
+        showToast(err.message || "เกิดข้อผิดพลาด", "error");
+        btn.disabled = false;
+        btn.innerHTML = origHtml;
+      }
     }
 
     startClock();

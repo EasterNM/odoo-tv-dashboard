@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from pathlib import Path
 from services.sales_service import get_ready_to_invoice
 from services.store_service import get_store_pickings
-from services.store_zone_service import get_store_zone_pickings
+from services.store_zone_service import get_store_zone_pickings, validate_pickings
 from services.transport_service import get_transport_pickings
 from services.bill_receipt_service import get_pending_receipts, confirm_receipt
 from services.dispatch_service import get_dispatch_routes, get_route_sos, confirm_dispatch
@@ -85,6 +85,24 @@ def store_zone_tv():
 def store_zone_pickings():
     try:
         return {"data": get_store_zone_pickings()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class ValidatePickRequest(BaseModel):
+    picking_ids: list[int]
+    so_name: str | None = None
+
+
+@router.post("/api/store-zone/validate-pick")
+def api_validate_pick(body: ValidatePickRequest):
+    try:
+        result = validate_pickings(body.picking_ids)
+        if not result["ok"]:
+            raise HTTPException(status_code=400, detail=result.get("error", "ไม่สามารถยืนยันได้"))
+        return result
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

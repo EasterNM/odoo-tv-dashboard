@@ -301,7 +301,7 @@ def get_store_zone_pickings() -> dict:
             row["count"]       = len(row["pickings"])
             row["printed"]     = all(p["printed"] for p in row["pickings"])
             row["create_time"] = _format_time(row.pop("_cdate", ""))
-            row.pop("picking_ids", None)
+
 
             if col == "pick":
                 row["zones"]        = so_zones_map.get(so_name, [])
@@ -395,3 +395,108 @@ def _format_elapsed(minutes: int) -> str:
         return f"{hours}ชม. {mins}น." if mins else f"{hours}ชม."
     days, hrs = divmod(hours, 24)
     return f"{days}วัน {hrs}ชม." if hrs else f"{days}วัน"
+
+
+def validate_pickings(picking_ids: list[int]) -> dict:
+    """
+    Validate one or more PICK pickings in Odoo (calls button_validate).
+    This completes the PICK operation and triggers Odoo to generate the PACK document.
+    """
+    if not picking_ids:
+        return {"ok": False, "error": "ไม่ได้ระบุรหัสใบจัดสินค้า"}
+
+    validated = []
+    errors = []
+
+    for pid in picking_ids:
+        try:
+            picks = odoo.search_read(
+                "stock.picking",
+                [("id", "=", pid)],
+                ["id", "name", "state", "origin", "picking_type_id"],
+                limit=1,
+            )
+            if not picks:
+                errors.append(f"ไม่พบใบจัด ID {pid}")
+                continue
+
+            pick = picks[0]
+            if pick["state"] == "done":
+                validated.append(pick["name"])
+                continue
+            if pick["state"] == "cancel":
+                errors.append(f"ใบจัด {pick['name']} ถูกยกเลิกไปแล้ว")
+                continue
+
+            # ตรวจสอบยอดหยิบใน move lines
+            lines = odoo.search_read(
+                "stock.move.line",
+                [("picking_id", "=", pid)],
+                ["id", "quantity", "qty_done"],
+                limit=500,
+            )
+            total_done = sum(float(l.get("qty_done") or 0.0) for l in lines)
+            if lines and total_done <= 0:
+                errors.append(f"ใบจัด {pick['name']} ยังไม่มียอดหยิบสินค้า (ยอดหยิบเป็น 0)")
+                continue
+
+            # เรียก button_validate
+            res = odoo.execute_method("stock.picking", "button_validate", [pid])
+
+            # กรณี Odoo เด้ง Wizard ยืนยันเรื่อง Backorder (เช่น หยิบไม่ครบ)
+            if isinstance(res, dict) and res.get("res_model") == "stock.backorder.confirmation":
+                wizard_id = res.get("res_id")
+                ctx = res.get("context", {})
+                if wizard_id:
+                    odoo.models.execute_kw(
+                        odoo.db, odoo.authenticate(), odoo.password,
+                        "stock.backorder.confirmation", "process",
+                        [[wizard_id]],
+                        {"context": ctx},
+                    )
+            elif isinstance(res, dict) and res.get("res_model") == "stock.immediate.transfer":
+                wizard_id = res.get("res_id")
+                ctx = res.get("context", {})
+                if wizard_id:
+                    odoo.models.execute_kw(
+                        odoo.db, odoo.authenticate(), odoo.password,
+                        "stock.immediate.transfer", "process",
+                        [[wizard_id]],
+                        {"context": ctx},
+                    )
+
+            # ตรวจสอบสถานะอีกครั้งว่ากลายเป็น done แล้วหรือไม่
+            updated = odoo.search_read(
+                "stock.picking",
+                [("id", "=", pid)],
+                ["id", "name", "state"],
+                limit=1,
+            )
+            if updated and updated[0]["state"] == "done":
+                validated.append(pick["name"])
+            else:
+                curr_st = updated[0]["state"] if updated else "unknown"
+                errors.append(f"ใบจัด {pick['name']} ไม่สามารถเปลี่ยนสถานะเป็นเสร็จสิ้นได้ (สถานะ: {curr_st})")
+
+        except Exception as e:
+            errors.append(f"เกิดข้อผิดพลาดในการ Validate ใบจัด {pid}: {str(e)}")
+
+    if validated and not errors:
+        return {
+            "ok": True,
+            "message": f"ยืนยันส่งไปแพ็คสำเร็จ ({', '.join(validated)})",
+            "validated": validated,
+        }
+    elif validated and errors:
+        return {
+            "ok": True,
+            "message": f"ยืนยันสำเร็จ ({', '.join(validated)}) แต่พบข้อผิดพลาดบางส่วน: {'; '.join(errors)}",
+            "validated": validated,
+            "errors": errors,
+        }
+    else:
+        return {
+            "ok": False,
+            "error": "; ".join(errors) if errors else "ไม่สามารถยืนยันได้",
+        }
+
