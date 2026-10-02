@@ -8,13 +8,13 @@
   <style>
     body { overflow: hidden; }
 
-    /* ── 5-column layout ── */
+    /* ── 6-column layout ── */
     .four-col {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 0.6rem;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 0.5rem;
       height: 100%;
-      padding: 0.6rem 0.8rem;
+      padding: 0.5rem 0.6rem;
     }
 
     /* ── column ── */
@@ -38,6 +38,7 @@
     .col-header.pick     { background: #1158a8; }
     .col-header.pack     { background: #7d5a00; }
     .col-header.delivery { background: #1a5e2a; }
+    .col-header.cl-col   { background: #0e6370; }
     .col-header.so-col   { background: #5a1e8c; }
     .col-header.warn-col { background: #7d1a1a; }
 
@@ -163,6 +164,142 @@
       color: #d29922; background: #2a1f00; border: 1px solid #7d5a00;
     }
 
+    /* ── CL card (column 4) ── */
+    .cl-card {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 7px;
+      padding: 0.45rem 0.6rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+      transition: all 0.2s ease;
+    }
+    .cl-card.match-main {
+      border-color: #238636;
+      border-left: 4px solid #3fb950;
+      background: #0d1f14;
+    }
+    .cl-card.overdue-7d {
+      border-color: #8e1515;
+      border-left: 4px solid #f85149;
+      background: #1f0d0d;
+    }
+    .cl-card.match-main.overdue-7d {
+      border-color: #f85149;
+      border-left: 4px solid #f85149;
+      border-right: 4px solid #3fb950;
+      background: #201308;
+    }
+    .cl-card.is-printed {
+      opacity: 0.45;
+    }
+
+    .cl-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .cl-name {
+      font-weight: bold;
+      color: #38bdf8;
+      font-size: 0.95rem;
+    }
+    .cl-time-group {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .cl-days-pill {
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 0.05rem 0.35rem;
+      border-radius: 4px;
+      background: #21262d;
+      color: #8b949e;
+      white-space: nowrap;
+    }
+    .cl-days-pill.overdue {
+      background: #3c0c0c;
+      color: #ff7b72;
+      border: 1px solid #f85149;
+      animation: pulse-overdue 2s infinite;
+    }
+    @keyframes pulse-overdue {
+      0%, 100% { opacity: 1; }
+      50%      { opacity: 0.55; }
+    }
+    .cl-time {
+      font-size: 0.76rem;
+      color: #8b949e;
+      white-space: nowrap;
+    }
+    .cl-cust {
+      font-size: 0.8rem;
+      color: #e6edf3;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-weight: 500;
+    }
+    .cl-origin {
+      font-size: 0.7rem;
+      color: #8b949e;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Alerts */
+    .cl-alerts {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+      margin-top: 0.15rem;
+    }
+    .cl-alert-match {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      background: #0d2818;
+      border: 1px solid #238636;
+      color: #3fb950;
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-weight: bold;
+    }
+    .cl-alert-overdue {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      background: #2b0d0d;
+      border: 1px solid #f85149;
+      color: #ff7b72;
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-weight: bold;
+    }
+    .cl-badges {
+      display: flex;
+      gap: 0.25rem;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 0.15rem;
+    }
+    .cl-st-badge {
+      font-size: 0.68rem;
+      padding: 0.08rem 0.35rem;
+      border-radius: 3px;
+      border: 1px solid #444;
+      font-weight: 600;
+    }
+    .cl-st-badge.state-assigned  { color: #3fb950; border-color: #238636; background: #0d2818; }
+    .cl-st-badge.state-draft     { color: #8b949e; border-color: #30363d; background: #161b22; }
+    .cl-st-badge.state-confirmed { color: #d29922; border-color: #7d5a00; background: #2a1f00; }
+    .cl-st-badge.state-waiting   { color: #f85149; border-color: #7d1a1a; background: #1a0a0a; }
+
     main { flex: 1; overflow: hidden; padding: 0; }
 
     /* ── pending-bill badge ── */
@@ -243,7 +380,16 @@
         <div class="col-body" id="body-delivery"></div>
       </div>
 
-      <!-- column 4: SO รวม -->
+      <!-- column 4: CL (คลังเคลม) -->
+      <div class="col cl-col">
+        <div class="col-header cl-col">
+          <span class="col-title">คลัง CL (เคลม)</span>
+          <span class="col-count" id="cnt-cl">0 ใบ</span>
+        </div>
+        <div class="col-body" id="body-cl"></div>
+      </div>
+
+      <!-- column 5: SO รวม -->
       <div class="col so-col">
         <div class="col-header so-col">
           <span class="col-title">รวม SO</span>
@@ -252,7 +398,7 @@
         <div class="col-body" id="body-sos"></div>
       </div>
 
-      <!-- column 5: ยอดไม่ตรง -->
+      <!-- column 6: ยอดไม่ตรง -->
       <div class="col warn-col">
         <div class="col-header warn-col">
           <span class="col-title">⚠ Pick ≠ Pack</span>
@@ -310,6 +456,62 @@
           </div>
           ${showBill ? `<div class="card-foot">${billTag}</div>` : ""}
         </div>`;
+      }).join("");
+    }
+
+    function renderClCol(items) {
+      const body = document.getElementById("body-cl");
+      const cnt  = document.getElementById("cnt-cl");
+      cnt.textContent = items.length + " ใบ";
+      if (!items.length) {
+        body.innerHTML = '<p style="color:#555;text-align:center;padding:1rem;">ไม่มีรายการ</p>';
+        return;
+      }
+      body.innerHTML = items.map(c => {
+        let cardCls = "cl-card";
+        if (c.matches_main) cardCls += " match-main";
+        if (c.is_over_7_days) cardCls += " overdue-7d";
+        if (c.printed) cardCls += " is-printed";
+
+        let alertHtml = "";
+        if (c.matches_main) {
+          const stageText = (c.main_stages && c.main_stages.length)
+            ? ` (${c.main_stages.join(", ")})`
+            : "";
+          alertHtml += `
+            <div class="cl-alert-match">
+              <span>🚚</span>
+              <span>ต้องจัดส่งไปด้วย${stageText}</span>
+            </div>`;
+        }
+        if (c.is_over_7_days) {
+          alertHtml += `
+            <div class="cl-alert-overdue">
+              <span>⏰</span>
+              <span>เกิน 7 วันแล้ว (รีบติดต่อลูกค้า) — ค้าง ${c.elapsed_days} วัน</span>
+            </div>`;
+        }
+
+        const daysClass = c.is_over_7_days ? "cl-days-pill overdue" : "cl-days-pill";
+        const originText = c.origin && c.origin !== "-" ? `<div class="cl-origin">อ้างอิง: ${c.origin}</div>` : "";
+
+        return `
+          <div class="${cardCls}">
+            <div class="cl-top">
+              <span class="cl-name">${c.name}</span>
+              <div class="cl-time-group">
+                <span class="${daysClass}">${c.days_label}</span>
+                <span class="cl-time">${c.create_time || ""}</span>
+              </div>
+            </div>
+            <div class="cl-cust" title="${c.customer}">${c.customer}</div>
+            ${originText}
+            ${alertHtml ? `<div class="cl-alerts">${alertHtml}</div>` : ""}
+            <div class="cl-badges">
+              <span class="cl-st-badge state-${c.state}">${c.state_label}</span>
+              ${c.printed ? '<span style="font-size:0.65rem;color:#8b949e;">🖨️ พิมพ์แล้ว</span>' : ''}
+            </div>
+          </div>`;
       }).join("");
     }
 
@@ -372,12 +574,14 @@
 
         const total = (data.sos || []).length;
         const warnCount = (data.warnings || []).length;
+        const clCount = (data.cl || []).length;
         document.getElementById("summary").textContent =
-          `${total} SO | PICK ${(data.pick||[]).length} | PACK ${(data.pack||[]).length} | DEL ${(data.delivery||[]).length}${warnCount ? ` | ⚠ ${warnCount}` : ""}`;
+          `${total} SO | PICK ${(data.pick||[]).length} | PACK ${(data.pack||[]).length} | DEL ${(data.delivery||[]).length} | CL ${clCount}${warnCount ? ` | ⚠ ${warnCount}` : ""}`;
 
         renderSimpleCol("pick",     data.pick     || []);
         renderSimpleCol("pack",     data.pack     || []);
         renderSimpleCol("delivery", data.delivery || []);
+        renderClCol(data.cl || []);
         renderSoCol(data.sos || []);
         renderWarnCol(data.warnings || []);
 

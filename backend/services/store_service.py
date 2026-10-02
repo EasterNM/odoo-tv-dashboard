@@ -8,7 +8,7 @@ from services.sales_service import _get_problem_so_ids
 from services.app_config import get_config
 
 PICKING_FIELDS = [
-    "name", "origin", "partner_id", "state", "picking_type_id", "create_date", "sale_id",
+    "id", "name", "origin", "partner_id", "state", "picking_type_id", "create_date", "sale_id",
     "x_studio_boolean_field_651_1jjl2ncdf",   # พิมพ์แล้ว
 ]
 
@@ -21,17 +21,17 @@ STATE_LABEL = {
     "cancel":    "ยกเลิก",
 }
 
-# คลังสินค้าหลัก: 3=Pick, 4=Pack, 2=Delivery | คลังเคลม: 18=Delivery
-MAIN_TYPE_BY_ID  = {3: "pick", 4: "pack", 2: "delivery"}
-CLAIM_TYPE_BY_ID = {18: "delivery"}
-ALL_TYPE_BY_ID   = {**MAIN_TYPE_BY_ID, **CLAIM_TYPE_BY_ID}
+# คลังสินค้าหลัก: 3=Pick, 4=Pack, 2=Delivery | คลังเคลม: 18=Delivery (CL)
+MAIN_TYPE_BY_ID = {3: "pick", 4: "pack", 2: "delivery"}
+CLAIM_TYPE_ID   = 18
 COLUMNS = ["pick", "pack", "delivery"]
 
 
 def get_store_pickings() -> dict:
     DATE_FROM = get_config()["date_from"] + " 00:00:00"
+    now = datetime.now(timezone.utc)
 
-    # query คลังหลัก: ต้องมี origin (SO)
+    # 1. query คลังหลัก: ต้องมี origin (SO)
     main_records = odoo.search_read("stock.picking", [
         ("state", "not in", ["cancel", "done"]),
         ("picking_type_id", "in", list(MAIN_TYPE_BY_ID.keys())),
@@ -39,22 +39,30 @@ def get_store_pickings() -> dict:
         ("create_date", ">=", DATE_FROM),
     ], PICKING_FIELDS, limit=500)
 
-    # หา partner_id ที่มีของออกจากคลังหลัก
-    main_partners: set[int] = {
-        r["partner_id"][0]
-        for r in main_records
-        if r.get("partner_id")
-    }
+    # รวบรวมข้อมูล partner_id ในคลังหลัก พร้อม stage และ SO
+    main_partner_info: dict[int, dict] = {}
+    for r in main_records:
+        if not r.get("partner_id"):
+            continue
+        pid = r["partner_id"][0]
+        tid = r.get("picking_type_id", [0])[0]
+        stage = MAIN_TYPE_BY_ID.get(tid, "").upper()
+        so_name = r.get("origin") or ""
+        if pid not in main_partner_info:
+            main_partner_info[pid] = {"stages": set(), "sos": set()}
+        if stage:
+            main_partner_info[pid]["stages"].add(stage)
+        if so_name:
+            main_partner_info[pid]["sos"].add(so_name)
 
-    # query คลังเคลม: ไม่ filter origin เพราะอาจไม่มี SO
+    # 2. query คลังเคลม (CL): แสดงทุกสถานะที่ยังไม่เสร็จ (draft, waiting, assigned ฯลฯ)
     claim_records = odoo.search_read("stock.picking", [
         ("state", "not in", ["cancel", "done"]),
-        ("picking_type_id", "in", list(CLAIM_TYPE_BY_ID.keys())),
-        ("partner_id", "in", list(main_partners)),
+        ("picking_type_id", "=", CLAIM_TYPE_ID),
         ("create_date", ">=", DATE_FROM),
-    ], PICKING_FIELDS, limit=200) if main_partners else []
+    ], PICKING_FIELDS, limit=200)
 
-    records = main_records + claim_records
+    records = main_records
 
     columns: dict[str, dict] = {col: {} for col in COLUMNS}
     sos: dict[str, dict] = {}
@@ -65,7 +73,7 @@ def get_store_pickings() -> dict:
 
     for r in records:
         type_id = r.get("picking_type_id", [0])[0]
-        ptype   = ALL_TYPE_BY_ID.get(type_id)
+        ptype   = MAIN_TYPE_BY_ID.get(type_id)
         if not ptype:
             continue
 
@@ -141,8 +149,57 @@ def get_store_pickings() -> dict:
 
         result_cols[col] = sorted(columns[col].values(), key=_priority)
 
+    # 3. จัดการคอลัมน์ CL (คลังเคลม)
+    cl_list = []
+    for r in claim_records:
+        pid = r["partner_id"][0] if r.get("partner_id") else None
+        customer = r["partner_id"][1] if r.get("partner_id") else "-"
+        cdate = r.get("create_date") or ""
+        days_float, days_int = _calc_days_elapsed(cdate, now)
+        is_over_7_days = days_float >= 7.0
+        matches_main = (pid in main_partner_info) if pid else False
+        main_stages = sorted(list(main_partner_info[pid]["stages"])) if matches_main else []
+        main_sos = sorted(list(main_partner_info[pid]["sos"])) if matches_main else []
+
+        # priority สำหรับจัดลำดับ:
+        # 0 = ตรงกับคลังหลัก + เกิน 7 วัน
+        # 1 = ตรงกับคลังหลัก (ต้องจัดส่งไปด้วย)
+        # 2 = เกิน 7 วัน (รีบติดต่อลูกค้า)
+        # 3 = รายการทั่วไป
+        if matches_main and is_over_7_days:
+            priority = 0
+        elif matches_main:
+            priority = 1
+        elif is_over_7_days:
+            priority = 2
+        else:
+            priority = 3
+
+        cl_list.append({
+            "id":                 r.get("id"),
+            "name":               r["name"],
+            "origin":             r.get("origin") or "-",
+            "customer":           customer,
+            "state":              r.get("state", ""),
+            "state_label":        STATE_LABEL.get(r.get("state", ""), r.get("state", "")),
+            "printed":            bool(r.get("x_studio_boolean_field_651_1jjl2ncdf", False)),
+            "create_time":        _format_time(cdate),
+            "create_date":        cdate,
+            "elapsed_days":       days_int,
+            "elapsed_days_float": days_float,
+            "days_label":         "วันนี้" if days_int == 0 else f"{days_int} วัน",
+            "is_over_7_days":     is_over_7_days,
+            "matches_main":       matches_main,
+            "main_stages":        main_stages,
+            "main_sos":           main_sos,
+            "_priority":          priority,
+        })
+
+    cl_list.sort(key=lambda x: (x["_priority"], -x["elapsed_days_float"], x["name"]))
+    for x in cl_list:
+        x.pop("_priority", None)
+
     # SO cross-column เรียงตามเวลาค้าง
-    now = datetime.now(timezone.utc)
     so_list = []
     for so_data in sos.values():
         oldest  = so_data.pop("_oldest", "")
@@ -155,7 +212,20 @@ def get_store_pickings() -> dict:
     # warning column: PICK done ≠ PACK done
     warnings = _build_warnings(sale_id_map)
 
-    return {**result_cols, "sos": so_list, "warnings": warnings}
+    return {**result_cols, "cl": cl_list, "sos": so_list, "warnings": warnings}
+
+
+def _calc_days_elapsed(date_str: str, now: datetime) -> tuple[float, int]:
+    """คำนวณจำนวนวันที่ผ่านไปนับตั้งแต่สร้างเอกสาร (UTC)"""
+    if not date_str:
+        return 0.0, 0
+    try:
+        dt = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+        diff_sec = max(0.0, (now - dt).total_seconds())
+        diff_days = diff_sec / 86400.0
+        return round(diff_days, 1), int(diff_sec // 86400)
+    except Exception:
+        return 0.0, 0
 
 
 def _build_warnings(sale_id_map: dict[int, dict]) -> list[dict]:
