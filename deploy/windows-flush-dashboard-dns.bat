@@ -23,7 +23,7 @@ echo Close all browser windows, reopen the browser, and visit:
 echo https://mtech.tail3a0947.ts.net:8443/store
 echo.
 echo If the link still fails, use the internal company-network URL:
-echo http://10.2.3.23:8000/store
+echo http://10.2.2.49:8000/store
 echo.
 pause
 exit /b 0
